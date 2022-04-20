@@ -33,7 +33,7 @@ class Fun(commands.Cog):
         if random.randint(1, 6) == 2:
             try:
                 await ctx.guild.kick(ctx.author, reason='They were unlucky.')
-            except Exception as e:
+            except Exception:
                 return await ctx.reply('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
             await msg.edit(content='Omae wa mou shindeiru~\nhttps://i.imgur.com/uTMawPi.gif')
         else:
@@ -44,6 +44,6 @@ class Fun(commands.Cog):
     async def suicide(self, ctx):
         try:
             await ctx.guild.kick(ctx.author, reason='Ah what a beautiful way to go')
-        except Exception as e:
+        except Exception:
             return await ctx.reply('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
         await ctx.send('Sayo-nara\nhttps://tenor.com/view/gigachad-chad-gif-20773266')
