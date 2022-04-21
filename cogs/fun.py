@@ -1,4 +1,3 @@
-import discord
 from discord.ext import commands
 import asyncio
 import random
@@ -11,9 +10,8 @@ class Fun(commands.Cog):
         self._last_member = None
 
     @commands.command()
+    @commands.is_owner()
     async def say(self, ctx, *, msg):
-        if not await self.bot.is_owner(ctx.author):
-            return await ctx.reply('H-hey! Nyor not my kouhai-nya!')
         if msg == '':
             return await ctx.reply('Oh nyuu.. wh-what do I say? Help me, pwetty please? Nyaaa…')
         for bad_word in bad_words:
@@ -27,6 +25,7 @@ class Fun(commands.Cog):
     
     @commands.command()
     @commands.guild_only()
+    @commands.has_permissions(manage_messages=True)
     async def roulette(self, ctx):
         msg = await ctx.send('**Spinning...**\nhttps://i.imgur.com/lPFgRP7.gif')
         await asyncio.sleep(3)
