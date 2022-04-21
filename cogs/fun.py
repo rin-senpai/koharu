@@ -18,7 +18,7 @@ class Fun(commands.Cog):
             return await ctx.reply('Oh nyuu.. wh-what do I say? Help me, pwetty please? Nyaaa…')
         for bad_word in bad_words:
             if bad_word in msg.lower():
-                return await ctx.reply('Nyaoww~ that’s an icky word! Hmpf, nyu don’t know that I’m a good little kitty-nya')
+                return await ctx.reply('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
         if msg.startswith('-h ') or msg.startswith('--hide '):
             msg = msg.removeprefix('-h ')
             msg = msg.removeprefix('--hide ')
@@ -47,3 +47,6 @@ class Fun(commands.Cog):
         except Exception:
             return await ctx.reply('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
         await ctx.send('Sayo-nara\nhttps://tenor.com/view/gigachad-chad-gif-20773266')
+
+async def setup(bot):
+    await bot.add_cog(Fun(bot))
