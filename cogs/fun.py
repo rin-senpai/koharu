@@ -17,11 +17,17 @@ class Fun(commands.Cog):
         for bad_word in bad_words:
             if bad_word in msg.lower():
                 return await ctx.reply('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
+        reply = None
+        if ctx.message.reference is not None and not ctx.message.is_system:
+            reply = await ctx.channel.fetch_message(ctx.message.reference.message_id)
         if msg.startswith('-h ') or msg.startswith('--hide '):
             msg = msg.removeprefix('-h ')
             msg = msg.removeprefix('--hide ')
             await ctx.message.delete()
-        await ctx.send(msg)
+        if reply is not None:
+            await reply.reply(msg)
+        else:
+            await ctx.send(msg)
     
     @commands.command()
     @commands.guild_only()
