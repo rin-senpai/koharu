@@ -48,12 +48,6 @@ class NSFW(commands.Cog):
                 await ctx.reply('That doesn\'t seem to be valid sauce.')
             else:
                 await ctx.send(nhentai.get_doujin(id=sauce).url)
-
-    @commands.command()
-    async def test(self, ctx):
-        page = nhentai.search(query='min')
-        doujin = random.choice(page.doujins)
-        print(doujin.url)
        
 async def setup(bot):
     await bot.add_cog(NSFW(bot))
