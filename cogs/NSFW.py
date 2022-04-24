@@ -1,3 +1,4 @@
+import discord
 from discord.ext import commands
 import random
 import typing
@@ -8,12 +9,12 @@ nhentai = NHentai()
 class HentaiFlags(commands.FlagConverter):
     cursed: int = None
 
-class NSFW(commands.Cog):
+class NSFW(commands.Cog, description='The cultured commands. Unfortunately they can\'t be used outside of cultured channels, but if you\'re the type of person who uses non-cultured channels, I don\'t think you deserve to be in a server with me.'):
     def __init__(self, bot):
         self.bot = bot
         self._last_member = None
 
-    @commands.command(aliases=['sex'])
+    @commands.command(aliases=['sex'], description='Pure culture.', help='You can specify your own sauce by simply using it as an argument. \n\nYou can also specify the amount of cursed tags you want by using the argument `cursed: <number>`. Setting this to 0 removes all cursed tags. \n\nIf you don\'t specify a number, you will have a 50% chance to get 3 cursed tags, and a 50% chance to get 0.')
     @commands.is_nsfw()
     async def hentai(self, ctx, sauce: typing.Optional[int], *, flags: HentaiFlags):
         cursed_tags = ['bbm', 'bbw', 'netorare', 'rape', 'scat', 'dicknipples', 'eye penetration', 'farting', 'guro', 'inflation', 'cumflation', 'drugs', 'vore', 'vomit', 'smegma', 'snuff', 'blackmail', 'moral degeneration', 'mind break', 'torture', 'urethra insertion', 'cbt', 'breast expansion', 'prolapse', 'pregnant', 'urination', 'amputee', 'brain fuck', 'cannibalism', 'diaper', 'milking', 'bestiality']
@@ -48,6 +49,18 @@ class NSFW(commands.Cog):
                 await ctx.reply('That doesn\'t seem to be valid sauce.')
             else:
                 await ctx.send(nhentai.get_doujin(id=sauce).url)
+
+    @commands.command(description='xd')
+    async def buttons(self, ctx):
+        await ctx.send('owo', view=Buttons())
+
+class Buttons(discord.ui.View):
+    def __init__(self, *, timeout=180):
+        super().__init__(timeout=timeout)
+    @discord.ui.button(label="OwO", style=discord.ButtonStyle.primary, emoji='<a:gorospin:863670621732732938>')
+    async def owo(self, interaction:discord.Interaction, button:discord.ui.Button):
+        button.disabled=True
+        await interaction.response.edit_message(content='<a:gorospin:863670621732732938>', view=self)
        
 async def setup(bot):
     await bot.add_cog(NSFW(bot))

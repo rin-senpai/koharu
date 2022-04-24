@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands
 
-class Utility(commands.Cog):
+class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I don\'t mind if others find utility in me. 👉 👈'):
     def __init__(self, bot):
         self.bot = bot
         self._last_member = None
 
-    @commands.command(aliases=['colour'])
+    @commands.command(aliases=['colour'], description='Sets your role color.', help='This uses discord\'s implementation of colors. As such, hex codes must be prefixed with `#`. Additionally, you can use pre-specified colors such as `red` or `blue` etc.')
     async def color(self, ctx, color: discord.Colour):
         role = discord.utils.get(ctx.guild.roles, name=f'{ctx.author.id}')
         if role is None:
