@@ -50,6 +50,11 @@ class NSFW(commands.Cog, description='The cultured commands. Unfortunately they 
             else:
                 await ctx.send(nhentai.get_doujin(id=sauce).url)
 
+    @commands.command(aliases=['ball', 'stretch', 'stretcher', 'reddit'], description='Section two. Ball stretcher.')
+    @commands.is_nsfw()
+    async def ballstretcher(self, ctx):
+        await ctx.send('https://cdn.discordapp.com/attachments/752052271935914067/967798988222890035/unknown.png')
+
     @commands.command(description='xd')
     async def buttons(self, ctx):
         await ctx.send('owo', view=Buttons())
