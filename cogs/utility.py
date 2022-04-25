@@ -23,5 +23,13 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
         if isinstance(error, commands.BadColourArgument):
             await ctx.reply('That doesn\'t seem to be a valid color.')
 
+    @commands.command(aliases=['pfp'], description='Sends the profile picture of the specified user.', help='If no user is specified, your own profile picture will be sent.')
+    async def avatar(self, ctx, member: discord.Member = None):
+        if member is None:
+            member = ctx.author
+        embed = discord.Embed(title=f'{member.name}\'s Avatar', url=member.avatar.url)
+        embed.set_image(url=member.avatar.url)
+        await ctx.send(embed=embed)
+
 async def setup(bot):
     await bot.add_cog(Utility(bot))
