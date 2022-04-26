@@ -25,10 +25,11 @@ class Fun(commands.Cog, description='Commands that are fun. I know, it\'s a bit 
             msg = msg.removeprefix('-h ')
             msg = msg.removeprefix('--hide ')
             await ctx.message.delete()
+        files = [await f.to_file() for f in ctx.message.attachments] if ctx.message.attachments else None
         if reply is not None:
-            await reply.reply(msg)
+            await reply.reply(msg, files=files)
         else:
-            await ctx.send(msg)
+            await ctx.send(msg, files=files)
 
     @commands.command(description='I echo the words of my *true* kouhai except owo.', help='Append your request with `-h` or `--hide` in order to remove any traces of your actions.')
     @commands.is_owner()
@@ -48,15 +49,13 @@ class Fun(commands.Cog, description='Commands that are fun. I know, it\'s a bit 
         if msg.startswith('owo ') or msg.startswith('uwu ') or msg.startswith('uvu '):
             level = msg[0:3]
             msg = msg[4:]
-            if reply is not None:
-                await reply.reply(owoify(msg, level))
-            else:
-                await ctx.send(owoify(msg, level))
         else:
-            if reply is not None:
-                await reply.reply(owoify(msg))
-            else:
-                await ctx.send(owoify(msg))
+            level = 'owo'
+        files = [await f.to_file() for f in ctx.message.attachments] if ctx.message.attachments else None
+        if reply is not None:
+            await reply.reply(owoify(msg, level), files=files)
+        else:
+            await ctx.send(owoify(msg, level), files=files)
 
 
     @commands.command(description='Play some Russian roulette and have a chance of getting yourself kicked from the server!', help='You have a 1/6 chance of getting the better option.')
