@@ -67,6 +67,7 @@ class Fun(commands.Cog, description='Commands that are fun. I know, it\'s a bit 
             try:
                 await ctx.guild.kick(ctx.author, reason='They were unlucky.')
             except Exception:
+                await msg.delete()
                 return await ctx.reply('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
             await msg.edit(content='Omae wa mou shindeiru~\nhttps://i.imgur.com/uTMawPi.gif')
         else:
