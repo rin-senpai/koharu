@@ -1,5 +1,7 @@
 import discord
 from discord.ext import commands
+import requests
+from .utils.image import resize, is_image_url
 
 class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I don\'t mind if others find utility in me. 👉 👈'):
     def __init__(self, bot):
@@ -30,6 +32,24 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
         embed = discord.Embed(title=f'{member.name}\'s Avatar', url=member.avatar.url)
         embed.set_image(url=member.avatar.url)
         await ctx.send(embed=embed)
+
+    @commands.group(aliases=['im', 'img'], description='Manipulates images.')
+    async def image(self, ctx):
+        if ctx.invoked_subcommand is None:
+            await ctx.reply('Where valid subcommand. (I should probably make these also do senpai nani group command in the future)')
+
+    @image.command(aliases=['rs'], description='Resizes an image.', help='You may attach and link as many images as desired. Note that everything is validated, as such invalid (not) images are ignored.')
+    async def resize(self, ctx, width: int, height: int, *urls: str):
+        files = []
+        for url in urls:
+            if is_image_url(url):
+                files.append(resize(requests.get(url).content, url.split('/')[-1], width, height))
+        for file in ctx.message.attachments:
+            if file.content_type.startswith('image'):
+                files.append(resize(await file.read(), file.filename, width, height))
+        if files == []:
+            return await ctx.reply('No images?')
+        await ctx.send(files=files)
 
 async def setup(bot):
     await bot.add_cog(Utility(bot))
