@@ -1,5 +1,6 @@
 import discord
 from discord import ui
+from discord import app_commands
 from discord.ext import commands, menus
 from discord.ext.commands import HelpCommand
 
@@ -171,4 +172,4 @@ class Nani(commands.Cog):
         self.bot.help_command = self._original_help_command
 
 async def setup(bot):
-    await bot.add_cog(Nani(bot))
+    await bot.add_cog(Nani(bot), guild=discord.Object(id=752052271935914064))

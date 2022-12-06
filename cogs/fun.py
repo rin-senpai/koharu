@@ -1,4 +1,8 @@
+import discord
+from discord import ui, app_commands
 from discord.ext import commands
+from utils.owner_only import owner_only
+from typing import Literal
 from owoify import owoify
 import asyncio
 import random
@@ -8,79 +12,99 @@ bad_words = ['frick', 'heck']
 class Fun(commands.Cog, description='Commands that are fun. I know, it\'s a bit hard to guess what these categories are for.'):
     def __init__(self, bot):
         self.bot = bot
-        self._last_member = None
+        self.reply_ctx_menu = app_commands.ContextMenu(
+            name='Reply',
+            callback=self.reply
+        )
+        self.bot.tree.add_command(self.reply_ctx_menu)
 
-    @commands.command(description='I echo the words of my *true* kouhai.', help='Append your request with `-h` or `--hide` in order to remove any traces of your actions.')
-    @commands.is_owner()
-    async def say(self, ctx, *, msg):
-        if msg == '':
-            return await ctx.reply('Oh nyuu.. wh-what do I say? Help me, pwetty please? Nyaaa…')
+    @app_commands.command(name='say', description='I echo the words of my *true* kouhai')
+    @app_commands.check(owner_only)
+    async def say(self, interaction: discord.Interaction, message: str, hide: bool = True, attachment: discord.Attachment = None):
         for bad_word in bad_words:
-            if bad_word in msg.lower():
-                return await ctx.reply('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
-        reply = None
-        if ctx.message.reference is not None:
-            reply = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-        if msg.startswith('-h ') or msg.startswith('--hide '):
-            msg = msg.removeprefix('-h ')
-            msg = msg.removeprefix('--hide ')
-            await ctx.message.delete()
-        files = [await f.to_file() for f in ctx.message.attachments] if ctx.message.attachments else None
-        if reply is not None:
-            await reply.reply(msg, files=files)
+            if bad_word in message.lower():
+                return await interaction.response.send_message('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
+        if hide:
+            await interaction.response.send_message('Nyaoww~ I\'m a good little kitty-nya', ephemeral=True)
+            if attachment is not None:
+                await interaction.channel.send(message, file = await attachment.to_file())
+            else:
+                await interaction.channel.send(message)
         else:
-            await ctx.send(msg, files=files)
+            if attachment is not None:
+                await interaction.response.send_message(message, file = await attachment.to_file())
+            else:
+                await interaction.response.send_message(message)
 
-    @commands.command(description='I echo the words of my *true* kouhai except owo.', help='Append your request with `-h` or `--hide` in order to remove any traces of your actions.')
-    @commands.is_owner()
-    async def owoify(self, ctx, *, msg):
-        if msg == '':
-            return await ctx.reply('Oh nyuu.. wh-what do I say? Help me, pwetty please? Nyaaa…')
+    @say.error
+    async def say_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CheckFailure):
+            return await interaction.response.send_message('You are not my *true* kouhai.', ephemeral=True)
+
+    @app_commands.check(owner_only)
+    async def reply(self, interaction: discord.Interaction, message: discord.Message):
+        await interaction.response.send_modal(reply_modal(message=message))
+
+    @app_commands.command(name='owoify', description='I echo the words of my *true* kouhai except owo')
+    @app_commands.check(owner_only)
+    async def owoify(self, interaction: discord.Interaction, message: str, level: Literal['owo', 'uwu', 'uvu'] = 'owo', hide: bool = True, attachment: discord.Attachment = None):
         for bad_word in bad_words:
-            if bad_word in msg.lower():
-                return await ctx.reply('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
-        reply = None
-        if ctx.message.reference is not None:
-            reply = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-        if msg.startswith('-h ') or msg.startswith('--hide '):
-            msg = msg.removeprefix('-h ')
-            msg = msg.removeprefix('--hide ')
-            await ctx.message.delete()
-        if msg.startswith('owo ') or msg.startswith('uwu ') or msg.startswith('uvu '):
-            level = msg[0:3]
-            msg = msg[4:]
+            if bad_word in message.lower():
+                return await interaction.response.send_message('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
+        if hide:
+            await interaction.response.send_message('Nyaoww~ I\'m a good little kitty-nya', ephemeral=True)
+            if attachment is not None:
+                await interaction.channel.send(owoify(message, level), file = await attachment.to_file())
+            else:
+                await interaction.channel.send(owoify(message, level))
         else:
-            level = 'owo'
-        files = [await f.to_file() for f in ctx.message.attachments] if ctx.message.attachments else None
-        if reply is not None:
-            await reply.reply(owoify(msg, level), files=files)
-        else:
-            await ctx.send(owoify(msg, level), files=files)
+            if attachment is not None:
+                await interaction.response.send_message(owoify(message, level), file = await attachment.to_file())
+            else:
+                await interaction.response.send_message(owoify(message, level))
+    
+    @owoify.error
+    async def owoify_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CheckFailure):
+            return await interaction.response.send_message('U are nywot my *twue* kouhai.', ephemeral=True)
 
-
-    @commands.command(description='Play some Russian roulette and have a chance of getting yourself kicked from the server!', help='You have a 1/6 chance of getting the better option.')
-    @commands.guild_only()
-    async def roulette(self, ctx):
-        msg = await ctx.send('**Spinning...**\nhttps://i.imgur.com/lPFgRP7.gif')
+    @app_commands.command(name='roulette', description='Play some Russian roulette and have a chance of getting yourself kicked from the server!') # help='You have a 1/6 chance of getting the better option.'
+    @app_commands.guild_only()
+    async def roulette(self, interaction: discord.Interaction):
+        await interaction.response.send_message('**Spinning...**\nhttps://i.imgur.com/lPFgRP7.gif')
         await asyncio.sleep(3)
         if random.randint(1, 6) == 2:
             try:
-                await ctx.guild.kick(ctx.author, reason='They were unlucky.')
+                await interaction.guild.kick(interaction.user, reason='They were unlucky.')
             except Exception:
-                await msg.delete()
-                return await ctx.reply('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
-            await msg.edit(content='Omae wa mou shindeiru~\nhttps://i.imgur.com/uTMawPi.gif')
+                return await interaction.edit_original_response(content='You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
+            await interaction.edit_original_response(content='Omae wa mou shindeiru~\nhttps://i.imgur.com/uTMawPi.gif')
         else:
-            await msg.edit(content='Niice!\nhttps://i.imgur.com/KFvEtfj.gif')
+            await interaction.edit_original_response(content='Niice!\nhttps://i.imgur.com/KFvEtfj.gif')
 
-    @commands.command(description='Feeling down? Go kick yourself.')
-    @commands.guild_only()
-    async def suicide(self, ctx):
+    @app_commands.command(name='suicide', description='Feeling down? Go kick yourself')
+    @app_commands.guild_only()
+    async def suicide(self, interaction: discord.Interaction):
         try:
-            await ctx.guild.kick(ctx.author, reason='Ah what a beautiful way to go')
+            await interaction.guild.kick(interaction.author, reason='Ah what a beautiful way to go')
         except Exception:
-            return await ctx.reply('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
-        await ctx.send('Sayo-nara\nhttps://tenor.com/view/gigachad-chad-gif-20773266')
+            return await interaction.response.send_message('You seem to be too powerful\nhttps://tenor.com/view/fraz-bradford-meme-world-of-tanks-albania-gif-20568566')
+        await interaction.response.send_message('Sayo-nara\nhttps://tenor.com/view/gigachad-chad-gif-20773266')
+
+class reply_modal(ui.Modal, title = 'How shall I reply?'):
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+    reply = ui.TextInput(label = 'Message', style = discord.TextStyle.long, required = True)
+    mode = ui.TextInput(label = 'OwO?', style = discord.TextStyle.short, required = False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message('Nyaoww~ I\'m a good little kitty-nya', ephemeral=True)
+        if self.mode.value == 'owo' or self.mode.value == 'uwu' or self.mode.value == 'uvu':
+            await self.message.reply(owoify(self.reply.value))
+        else:
+            await self.message.reply(self.reply.value)
 
 async def setup(bot):
-    await bot.add_cog(Fun(bot))
+    await bot.add_cog(Fun(bot), guild=discord.Object(id=752052271935914064))

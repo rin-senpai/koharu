@@ -1,3 +1,4 @@
+from discord import app_commands
 import discord
 from PIL import Image, ImageSequence
 from io import BytesIO
@@ -16,7 +17,6 @@ def resize(file, filename, width, height):
             frames.append(frame.resize((width, height)))
             durations.append(frame.info['duration'])
         frames[0].save(output, 'GIF', save_all=True, append_images=frames[1:], loop=0, duration=durations, disposal=2, optimize=True)
-        print(time.time() - start_time)
     else:
         image = image.resize((width, height))
         image.save(output, 'PNG')
