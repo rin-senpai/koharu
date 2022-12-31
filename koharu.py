@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.ERROR)
+logging.basicConfig(level=logging.INFO)
 
 from typing import Literal, Optional
 

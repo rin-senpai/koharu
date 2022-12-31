@@ -26,6 +26,7 @@ class Fun(commands.Cog, description='Commands that are fun. I know, it\'s a bit 
                 return await interaction.response.send_message('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
         if hide:
             await interaction.response.send_message('Nyaoww~ I\'m a good little kitty-nya', ephemeral=True)
+            await interaction.delete_original_response()
             if attachment is not None:
                 await interaction.channel.send(message, file = await attachment.to_file())
             else:
@@ -53,6 +54,7 @@ class Fun(commands.Cog, description='Commands that are fun. I know, it\'s a bit 
                 return await interaction.response.send_message('Nyaoww~ that\'s an icky word! Hmpf, nyu don\'t know that I\'m a good little kitty-nya')
         if hide:
             await interaction.response.send_message('Nyaoww~ I\'m a good little kitty-nya', ephemeral=True)
+            await interaction.delete_original_response()
             if attachment is not None:
                 await interaction.channel.send(owoify(message, level), file = await attachment.to_file())
             else:
@@ -101,6 +103,7 @@ class reply_modal(ui.Modal, title = 'How shall I reply?'):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.send_message('Nyaoww~ I\'m a good little kitty-nya', ephemeral=True)
+        await interaction.delete_original_response()
         if self.mode.value == 'owo' or self.mode.value == 'uwu' or self.mode.value == 'uvu':
             await self.message.reply(owoify(self.reply.value))
         else:
