@@ -402,11 +402,10 @@ class FieldList(ui.Select):
 
         global field_view
 
-        view = ui.View.from_message(field_view)
-        view.children[1].disabled = False
-        view.children[2].disabled = False
-        view.children[3].options[selected_field].default = True
-        await field_view.edit(view=view)
+        self.view.children[1].disabled = False
+        self.view.children[2].disabled = False
+        self.view.children[3].options[selected_field].default = True
+        await field_view.edit(view=self.view)
 
         await interaction.response.send_message('** **', ephemeral=True)
         await interaction.delete_original_response()
