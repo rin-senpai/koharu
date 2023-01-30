@@ -40,7 +40,7 @@ class Moderation(commands.Cog, description='That\'s right, I can do moderation t
     async def kick_menu(self, interaction: discord.Interaction, member: discord.Member):
         await interaction.response.send_modal(kickban_modal(member=member, action='kick'))
 
-    @commands.command(name='ban', description='Bans a user from the server')
+    @app_commands.command(name='ban', description='Bans a user from the server')
     @app_commands.guild_only()
     @app_commands.default_permissions(ban_members=True)
     @app_commands.checks.has_permissions(ban_members=True)
@@ -176,4 +176,4 @@ def guild_kickban_embed(user, member, reason, type):
     return guild_embed
 
 async def setup(bot):
-    await bot.add_cog(Moderation(bot), guild=discord.Object(id=752052271935914064))
+    await bot.add_cog(Moderation(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])

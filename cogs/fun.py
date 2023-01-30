@@ -110,4 +110,4 @@ class reply_modal(ui.Modal, title = 'How shall I reply?'):
             await self.message.reply(self.reply.value)
 
 async def setup(bot):
-    await bot.add_cog(Fun(bot), guild=discord.Object(id=752052271935914064))
+    await bot.add_cog(Fun(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])

@@ -34,7 +34,7 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
         await role.edit(colour=role_color)
         if role not in interaction.user.roles:
             await interaction.user.add_roles(role)
-        if color is None:
+        if color is None and random is False:
             return await interaction.response.send_message('Your role has been reset.', ephemeral=True)
         else:
             return await interaction.response.send_message(f'Your role has been updated to {str(role_color)}.', ephemeral=True)
@@ -263,4 +263,4 @@ class EditField(ui.Modal, title = 'Edit Field'):
         await interaction.response.edit_message(view=self.parent, embed=embed)
 
 async def setup(bot):
-    await bot.add_cog(Utility(bot), guild=discord.Object(id=752052271935914064))
+    await bot.add_cog(Utility(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
