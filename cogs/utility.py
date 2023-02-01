@@ -83,10 +83,10 @@ class InteractiveEmbedBuilder(ui.View):
 
     @ui.button(label='Create Embed', style=discord.ButtonStyle.primary, row = 0)
     async def create_embed(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await asyncio.sleep(1)
-        await interaction.delete_original_response()
         await interaction.channel.send(embed=self.embed)
         await interaction.response.send_message('Embed created', ephemeral=True)
+        await asyncio.sleep(1)
+        await interaction.delete_original_response()
     
     @ui.button(label='Edit Text', style=discord.ButtonStyle.secondary, row = 0)
     async def text(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -115,7 +115,7 @@ class ColorSelect(ui.Select):
             discord.SelectOption(label='Blue', value='0xa7cdfa'),
             discord.SelectOption(label='Blurple', value='0x454fbf'),
             discord.SelectOption(label='Purple', value='0xd19cf0'),
-            discord.SelectOption(label='Pink', value='0xef5a93', default=True),
+            discord.SelectOption(label='Pink', value='0xef5a93'),
             discord.SelectOption(label='White', value='0xffffff'),
             discord.SelectOption(label='Black', value='0x000000')
         ]
@@ -200,7 +200,7 @@ class AddField(ui.Modal, title = 'Add Field'):
         super().__init__()
         self.parent = parent
 
-    name_input = ui.TextInput(label = 'Name', style = discord.TextStyle.short, required = True)
+    name_input = ui.TextInput(label = 'Name', style = discord.TextStyle.short, min_length=1, max_length=100, required = True)
     value_input = ui.TextInput(label = 'Content', style = discord.TextStyle.long, required = True)
     inline_input = ui.TextInput(label = 'Inline? (y/N)', style = discord.TextStyle.short, required = False)
 
