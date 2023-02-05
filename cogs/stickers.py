@@ -158,7 +158,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 title=sticker[0],
                 color=0xef5a93
             ).set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar))
-            if i <= 25:
+            if i < 25:
                 options.append(discord.SelectOption(label=sticker[0], value=i))
             if i % 4 == 0:
                 grid_pages.append([discord.Embed(color=0xef5a93, url='https://ko-fi.com/voxeldev').set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar)])
@@ -193,7 +193,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         title=sticker[0],
                         color=0xef5a93
                     ).set_image(url=sticker_url))
-                if i <= 25:
+                if i < 25:
                     options.append(discord.SelectOption(label=sticker[0], value=i))
                 i += 1
 
