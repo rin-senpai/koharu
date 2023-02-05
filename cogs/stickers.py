@@ -118,8 +118,12 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             stickers = await self.bot.db.fetch('SELECT name, sticker_id FROM users_stickers WHERE user_id = $1', interaction.user.id)
             if stickers == []:
                 return await interaction.response.send_message('You have no stickers to delete silly!', ephemeral=True)
+            i = 1
             for sticker in stickers:
+                if i > 25:
+                    break
                 options.append(discord.SelectOption(label=sticker[0], value=sticker[1]))
+                i += 1
             await interaction.response.send_message(view=DeleteView(options, self.bot.db, interaction), ephemeral=True)
         else:
             successful_deletes = []
@@ -154,7 +158,8 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 title=sticker[0],
                 color=0xef5a93
             ).set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar))
-            options.append(discord.SelectOption(label=sticker[0], value=i))
+            if i <= 25:
+                options.append(discord.SelectOption(label=sticker[0], value=i))
             if i % 4 == 0:
                 grid_pages.append([discord.Embed(color=0xef5a93, url='https://ko-fi.com/voxeldev').set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar)])
             else:
@@ -188,7 +193,8 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         title=sticker[0],
                         color=0xef5a93
                     ).set_image(url=sticker_url))
-                options.append(discord.SelectOption(label=sticker[0], value=i))
+                if i <= 25:
+                    options.append(discord.SelectOption(label=sticker[0], value=i))
                 i += 1
 
             await interaction.response.send_message(embed=pages[0], view=EditView(pages, options, interaction, self.bot.db), ephemeral=True)
