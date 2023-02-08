@@ -105,7 +105,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_id)
 
         webhook = await interaction.channel.create_webhook(name='Impostor')
-        await webhook.send(content=sticker_url, username=interaction.user.nick, avatar_url=interaction.user.display_avatar)
+        await webhook.send(content=sticker_url, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
         await webhook.delete()
 
         await interaction.response.send_message('Pain required response.', ephemeral=True)
