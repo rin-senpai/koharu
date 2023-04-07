@@ -211,6 +211,23 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 sticker_aliases = '\n'.join(aliases)
             await interaction.response.send_modal(EditModal(sticker_id, sticker_name, sticker_aliases, self.bot.db))
 
+    @sticker.command(name='share', description='Shares a sticker from your collection')
+    async def share(self, interaction: discord.Interaction, name: str):
+        name = name.replace('\n', ' ')
+        sticker_details = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
+        if sticker_details[0] is None:
+            return await interaction.response.send_message('Unreal bro!!', ephemeral=True)
+        sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_details[0])
+
+        embed = discord.Embed(
+            type='image',
+            title=sticker_details[1],
+            color=0xef5a93
+        ).set_image(url=sticker_url).set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
+
+        await interaction.response.send_message(embed=embed, view=ShareView(sticker_details[0], sticker_details[1], self.bot.db))
+
+
     async def steal(self, interaction: discord.Interaction, message: discord.Message):
         if message.webhook_id is not None and is_image_url(message.content):
             sticker_id = await self.bot.db.fetchval('SELECT sticker_id FROM stickers WHERE sticker_url = $1', message.content)
@@ -466,6 +483,21 @@ class ViewView(StickerView):
                 self.add_item(StealButton(self))
             button.label='Grid'
             await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+class ShareView(ui.View):
+    def __init__(self, sticker_id, name, db):
+        super().__init__(timeout=120)
+        self.add_item(SingleStealButton(sticker_id, name, db))
+
+class SingleStealButton(ui.Button):
+    def __init__(self, sticker_id, name, db):
+        super().__init__(label='Steal', style=discord.ButtonStyle.secondary)
+        self.sticker_id = sticker_id
+        self.name = name
+        self.db = db
+    
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_modal(StealModal(self.sticker_id, self.db, self.name))
 
 class StealButton(ui.Button):
     def __init__(self, parent):
