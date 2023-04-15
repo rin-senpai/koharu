@@ -399,7 +399,7 @@ def generate_confirmation_embed(confirmation_type, name, alias_breakdown, alias_
 
 class DeleteView(ui.View):
     def __init__(self, options, db, interaction):
-        super().__init__(timeout=120)
+        super().__init__(timeout=60)
         self.latest_interaction = interaction
         self.add_item(DeleteSelect(options, db))
 
@@ -434,7 +434,7 @@ class DeleteSelect(ui.Select):
 
 class StickerView(ui.View):
     def __init__(self, pages, options, interaction):
-        super().__init__(timeout=120)
+        super().__init__(timeout=60)
         self.pages = pages
         self.grid = False
         self.current_page = 0
@@ -483,7 +483,7 @@ class StickerView(ui.View):
         for child in self.children:
             child.disabled = True
         if self.grid:
-            self.grid_pages[self.current_page].color = None
+            self.grid_pages[self.current_page][0].color = None
             await self.latest_interaction.edit_original_response(embeds=self.grid_pages[self.current_page], view=self)
         else:
             self.pages[self.current_page].color = None
