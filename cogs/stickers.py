@@ -480,15 +480,14 @@ class StickerView(ui.View):
         return result
 
     async def on_timeout(self):
-        if len(self.pages) != 0:
-            for child in self.children:
-                child.disabled = True
-            if self.grid:
-                self.grid_pages[self.current_page].color = None
-                await self.latest_interaction.edit_original_response(embeds=self.grid_pages[self.current_page], view=self)
-            else:
-                self.pages[self.current_page].color = None
-                await self.latest_interaction.edit_original_response(embed=self.pages[self.current_page], view=self)
+        for child in self.children:
+            child.disabled = True
+        if self.grid:
+            self.grid_pages[self.current_page].color = None
+            await self.latest_interaction.edit_original_response(embeds=self.grid_pages[self.current_page], view=self)
+        else:
+            self.pages[self.current_page].color = None
+            await self.latest_interaction.edit_original_response(embed=self.pages[self.current_page], view=self)
         return
 
 class StickerSelect(ui.Select):
