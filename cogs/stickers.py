@@ -223,9 +223,10 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             page = ''
             for sticker in stickers[i:i+10]:
                 if sticker[1] is not None and sticker[1] != []:
-                    page += f'**{sticker[0]}** `{"` `".join(sticker[1])}`\n'
+                    remainder = len(sticker[1]) - 2
+                    page += f'{sticker[0]} `{"` `".join(sticker[1][:2])}`{ " `+" + str(remainder) + "`" if remainder > 0 else ""}\n'
                 else:
-                    page += f'**{sticker[0]}**\n'
+                    page += f'{sticker[0]}\n'
             pages.append(discord.Embed(
                 type='rich',
                 title='Your Stickers',
@@ -315,7 +316,7 @@ async def cleanup_name(name, db, user_id, prev_name = ''):
     if '`' in name:
         breakdown = 'No backticks!!'
         return (None, breakdown)
-    if name.emoji_count() > 0:
+    if emoji_count(name) > 0:
         breakdown = 'No emojis!!'
         return (None, breakdown)
     if len(name) > 100:
@@ -362,7 +363,7 @@ async def cleanup_aliases(aliases_list, db, user_id, prev_list=[]):
             elif '`' in aliases_list[i]:
                 breakdown.append([alias_display, '❎ No backticks!!'])
                 success = 'Some aliases were rejected...'
-            elif aliases_list[i].emoji_count() > 0:
+            elif emoji_count(aliases_list[i]) > 0:
                 breakdown.append([alias_display, '❎ No emojis!!'])
                 success = 'Some aliases were rejected...'
             elif len(aliases_list[i]) > 100:
