@@ -3,6 +3,7 @@ from discord import ui, app_commands
 from discord.ext import commands
 import requests
 from .utils.image import resize, is_image_url
+from emoji import emoji_count
 
 class Stickers(commands.Cog, description='only took multiple years (I think?)'):
     def __init__(self, bot):
@@ -211,6 +212,29 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 sticker_aliases = '\n'.join(aliases)
             await interaction.response.send_modal(EditModal(sticker_id, sticker_name, sticker_aliases, self.bot.db))
 
+    @sticker.command(name='list', description='Lists stickers in your collection')
+    async def list(self, interaction: discord.Interaction):
+        stickers = await self.bot.db.fetch('SELECT name, aliases FROM users_stickers WHERE user_id = $1', interaction.user.id)
+        if stickers == []:
+            return await interaction.response.send_message('You have no stickers to list silly!', ephemeral=True)
+        pages = []
+        pages_num = len(stickers)//10+1
+        for i in range(0, len(stickers), 10):
+            page = ''
+            for sticker in stickers[i:i+10]:
+                if sticker[1] is not None and sticker[1] != []:
+                    page += f'**{sticker[0]}** `{"` `".join(sticker[1])}`\n'
+                else:
+                    page += f'**{sticker[0]}**\n'
+            pages.append(discord.Embed(
+                type='rich',
+                title='Your Stickers',
+                description=page,
+                color=0xef5a93
+            ).set_footer(text=f'Page {i//10+1}/{pages_num}'))
+
+        await interaction.response.send_message(embed=pages[0], view=ListView(pages, interaction), ephemeral=True)
+
     @sticker.command(name='share', description='Shares a sticker from your collection')
     async def share(self, interaction: discord.Interaction, name: str):
         name = name.replace('\n', ' ')
@@ -288,6 +312,12 @@ async def cleanup_name(name, db, user_id, prev_name = ''):
     if ':' in name:
         breakdown = 'No colons!!'
         return (None, breakdown)
+    if '`' in name:
+        breakdown = 'No backticks!!'
+        return (None, breakdown)
+    if name.emoji_count() > 0:
+        breakdown = 'No emojis!!'
+        return (None, breakdown)
     if len(name) > 100:
         breakdown = 'Exceeds 100 character!!'
         return(None, breakdown)
@@ -328,6 +358,12 @@ async def cleanup_aliases(aliases_list, db, user_id, prev_list=[]):
                 success = 'Some aliases were rejected...'
             elif ':' in aliases_list[i]:
                 breakdown.append([alias_display, '❎ No colons!!'])
+                success = 'Some aliases were rejected...'
+            elif '`' in aliases_list[i]:
+                breakdown.append([alias_display, '❎ No backticks!!'])
+                success = 'Some aliases were rejected...'
+            elif aliases_list[i].emoji_count() > 0:
+                breakdown.append([alias_display, '❎ No emojis!!'])
                 success = 'Some aliases were rejected...'
             elif len(aliases_list[i]) > 100:
                 breakdown.append([alias_display,'❎ Exceeds 100 characters!!'])
@@ -402,9 +438,10 @@ class StickerView(ui.View):
         self.pages = pages
         self.grid = False
         self.current_page = 0
-        self.options = options
+        if options is not None:
+            self.options = options
+            self.add_item(StickerSelect(options))
         self.author = interaction.user
-        self.add_item(StickerSelect(options))
         self.latest_interaction = interaction
 
     @ui.button(emoji='<:previous:967665422633689138>', style=discord.ButtonStyle.primary)
@@ -446,8 +483,12 @@ class StickerView(ui.View):
         if len(self.pages) != 0:
             for child in self.children:
                 child.disabled = True
-            self.pages[self.current_page].color = None
-            await self.latest_interaction.edit_original_response(embed=self.pages[self.current_page], view=self)
+            if self.grid:
+                self.grid_pages[self.current_page].color = None
+                await self.latest_interaction.edit_original_response(embeds=self.grid_pages[self.current_page], view=self)
+            else:
+                self.pages[self.current_page].color = None
+                await self.latest_interaction.edit_original_response(embed=self.pages[self.current_page], view=self)
         return
 
 class StickerSelect(ui.Select):
@@ -486,8 +527,18 @@ class ViewView(StickerView):
 
 class ShareView(ui.View):
     def __init__(self, sticker_id, name, db):
-        super().__init__(timeout=120)
+        super().__init__()
         self.add_item(SingleStealButton(sticker_id, name, db))
+    
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+        await self.latest_interaction.edit_original_response(view=self)
+        return
+
+class ListView(StickerView):
+    def __init__(self, pages, interaction):
+        super().__init__(pages=pages, options=None, interaction=interaction)
 
 class SingleStealButton(ui.Button):
     def __init__(self, sticker_id, name, db):

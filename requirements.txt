@@ -3,3 +3,4 @@ owoify
 asyncpg
 pillow
 validators
+emoji
