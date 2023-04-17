@@ -192,7 +192,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         type='image',
                         title=sticker[0],
                         color=0xef5a93
-                    ).set_image(url=sticker_url))
+                    ).set_image(url=sticker_url).set_footer(text=f'Page {i + 1}/{len(stickers)}'))
                 options.append(discord.SelectOption(label=sticker[0], value=i))
                 i += 1
 
@@ -543,7 +543,7 @@ class StickerView(ui.View):
             else:
                 self.current_page = self.current_page + 1
                 if self.current_page % 25 == 0:
-                    self.current_select_page = self.current_select_page - 1
+                    self.current_select_page = self.current_select_page + 1
                     self.update_select()
             await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
 
