@@ -121,8 +121,6 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 return await interaction.response.send_message('You have no stickers to delete silly!', ephemeral=True)
             i = 1
             for sticker in stickers:
-                if i > 25:
-                    break
                 options.append(discord.SelectOption(label=sticker[0], value=sticker[1]))
                 i += 1
             await interaction.response.send_message(view=DeleteView(options, self.bot.db, interaction), ephemeral=True)
@@ -137,12 +135,12 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @sticker.command(name='view', description='View stickers from yours or others collections')
-    async def view(self, interaction: discord.Interaction, user: discord.User = None):
+    async def view(self, interaction: discord.Interaction, user: discord.User = None, hidden: bool = True):
         if user is None:
             sticker_user = interaction.user
         else:
             sticker_user = user
-        stickers = await self.bot.db.fetch('SELECT name, sticker_id FROM users_stickers WHERE user_id = $1', sticker_user.id)
+        stickers = await self.bot.db.fetch('SELECT name, sticker_id, aliases FROM users_stickers WHERE user_id = $1', sticker_user.id)
         if stickers == []:
             if sticker_user.id == interaction.user.id:
                 return await interaction.response.send_message('You have no stickers to view silly!', ephemeral=True)
@@ -158,16 +156,17 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 type='image',
                 title=sticker[0],
                 color=0xef5a93
-            ).set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar))
-            if i < 25:
-                options.append(discord.SelectOption(label=sticker[0], value=i))
+            ).set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar).set_footer(text=f'Page {i + 1}/{len(stickers)}'))
+            options.append(discord.SelectOption(label=sticker[0], value=i))
             if i % 4 == 0:
-                grid_pages.append([discord.Embed(color=0xef5a93, url='https://ko-fi.com/voxeldev').set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar)])
+                grid_pages.append([discord.Embed(color=0xef5a93, url='https://ko-fi.com/voxeldev').set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar).set_footer(text=f'Page {i//4 + 1}/{len(stickers) // 4}')])
             else:
                 grid_pages[-1].append(discord.Embed(url='https://ko-fi.com/voxeldev').set_image(url=sticker_url))
             i += 1
+
+        list_pages = await self.generate_list(stickers)
         
-        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, options, self.bot.db, interaction))
+        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot.db, interaction), ephemeral=hidden)
 
     @sticker.command(name='edit', description='Edit stickers from your collection')
     async def edit(self, interaction: discord.Interaction, name: str = ''):
@@ -187,15 +186,14 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         title=sticker[0],
                         description=alias_description,
                         color=0xef5a93
-                    ).set_image(url=sticker_url))
+                    ).set_image(url=sticker_url).set_footer(text=f'Page {i + 1}/{len(stickers)}'))
                 else:
                     pages.append(discord.Embed(
                         type='image',
                         title=sticker[0],
                         color=0xef5a93
                     ).set_image(url=sticker_url))
-                if i < 25:
-                    options.append(discord.SelectOption(label=sticker[0], value=i))
+                options.append(discord.SelectOption(label=sticker[0], value=i))
                 i += 1
 
             await interaction.response.send_message(embed=pages[0], view=EditView(pages, options, interaction, self.bot.db), ephemeral=True)
@@ -212,30 +210,6 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 sticker_aliases = '\n'.join(aliases)
             await interaction.response.send_modal(EditModal(sticker_id, sticker_name, sticker_aliases, self.bot.db))
 
-    @sticker.command(name='list', description='Lists stickers in your collection')
-    async def list(self, interaction: discord.Interaction):
-        stickers = await self.bot.db.fetch('SELECT name, aliases FROM users_stickers WHERE user_id = $1', interaction.user.id)
-        if stickers == []:
-            return await interaction.response.send_message('You have no stickers to list silly!', ephemeral=True)
-        pages = []
-        pages_num = len(stickers)//10+1
-        for i in range(0, len(stickers), 10):
-            page = ''
-            for sticker in stickers[i:i+10]:
-                if sticker[1] is not None and sticker[1] != []:
-                    remainder = len(sticker[1]) - 2
-                    page += f'{sticker[0]} `{"` `".join(sticker[1][:2])}`{ " `+" + str(remainder) + "`" if remainder > 0 else ""}\n'
-                else:
-                    page += f'{sticker[0]}\n'
-            pages.append(discord.Embed(
-                type='rich',
-                title='Your Stickers',
-                description=page,
-                color=0xef5a93
-            ).set_footer(text=f'Page {i//10+1}/{pages_num}'))
-
-        await interaction.response.send_message(embed=pages[0], view=ListView(pages, interaction), ephemeral=True)
-
     @sticker.command(name='share', description='Shares a sticker from your collection')
     async def share(self, interaction: discord.Interaction, name: str):
         name = name.replace('\n', ' ')
@@ -250,7 +224,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             color=0xef5a93
         ).set_image(url=sticker_url).set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
 
-        await interaction.response.send_message(embed=embed, view=ShareView(sticker_details[0], sticker_details[1], self.bot.db))
+        await interaction.response.send_message(embed=embed, view=ShareView(sticker_details[0], sticker_details[1], self.bot.db, interaction.user.id))
 
 
     async def steal(self, interaction: discord.Interaction, message: discord.Message):
@@ -260,8 +234,51 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 return await interaction.response.send_message('This isn\'t a sticker xd', ephemeral=True)
             if await self.bot.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND sticker_id = $2', interaction.user.id, sticker_id) is not None:
                 return await interaction.response.send_message('You already have that sticker', ephemeral=True)
-            return await interaction.response.send_modal(StealModal(sticker_id, self.bot.db))
+            return await attempt_steal(sticker_id, self.bot.db, interaction)
         await interaction.response.send_message('the frick is this disappointing garbage nya?', ephemeral=True)
+
+    async def generate_list(self, stickers):
+        line_limit = 16
+        length_limit = 48
+        pages = []
+        pages_num = len(stickers)//line_limit+1
+        for i in range(0, len(stickers), line_limit):
+            page = ''
+            for sticker in stickers[i:i+line_limit]:
+                if sticker[2] is not None and sticker[2] != []:
+                    # arigatou min
+
+                    temp_string = f'`{"` `".join(sticker[2])}`'
+                    temp_visible_chars = 0
+                    temp_index = 0
+                    temp_optimise_limit = length_limit - len(sticker[0])
+                    temp_optimise_strlen = len(temp_string)
+                    while temp_visible_chars < temp_optimise_limit and temp_index < temp_optimise_strlen:
+                        if temp_string[temp_index] != '`':
+                            temp_visible_chars += 1
+                        temp_index += 1
+                    temp_string = temp_string[:temp_index]
+                    if temp_string.count('`') % 2 == 1:
+                        if temp_string[-1] == '`':
+                            temp_string = temp_string[:-2]
+                        elif temp_string[-2] == '`':
+                            temp_string = temp_string[:-3]
+                        else:
+                            temp_string = temp_string[:-1] + '…`'
+                    temp_optimise_more = int(len(sticker[2]) - temp_string.count('`') / 2)
+                    if temp_optimise_more > 0:
+                        temp_string += f' `+{temp_optimise_more}`'
+                    page += f'{sticker[0]} {temp_string}\n'
+                else:
+                    page += f'{sticker[0]}\n'
+            pages.append(discord.Embed(
+                type='rich',
+                title='Your Stickers',
+                description=page,
+                color=0xef5a93
+            ).set_footer(text=f'Page {i//line_limit+1}/{pages_num}'))
+
+        return pages
                 
 
     """ @commands.Cog.listener()
@@ -402,12 +419,32 @@ class DeleteView(ui.View):
     def __init__(self, options, db, interaction):
         super().__init__(timeout=60)
         self.latest_interaction = interaction
-        self.add_item(DeleteSelect(options, db))
+        self.current_select_page = 0
+        self.options = options
+        self.select = DeleteSelect(options[:25], db)
+        self.add_item(self.select)
+    
+    @ui.button(emoji='<:previous:967665422633689138>', style=discord.ButtonStyle.secondary, row=1)
+    async def previous_options(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_select_page == 0:
+            self.current_select_page = len(self.options) // 25
+        else:
+            self.current_select_page = self.current_select_page - 1
+        self.update_select()
+        await interaction.response.edit_message(view=self)
 
-    async def interaction_check(self, interaction: discord.Interaction):
-        result = interaction.user.id == self.author.id
-        self.latest_interaction = interaction
-        return result
+    @ui.button(emoji='<:next:967665404589801512>', style=discord.ButtonStyle.secondary, row=1)
+    async def next_options(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_select_page == len(self.options) // 25:
+            self.current_select_page = 0
+        else:
+            self.current_select_page = self.current_select_page + 1
+        self.update_select()
+        await interaction.response.edit_message(view=self)
+
+    def update_select(self):
+        self.select.options = self.options[self.current_select_page * 25:(self.current_select_page + 1) * 25]
+        self.select.max_values = len(self.select.options)
 
     async def on_timeout(self):
         for child in self.children:
@@ -417,11 +454,8 @@ class DeleteView(ui.View):
 class DeleteSelect(ui.Select):
     def __init__(self, options, db):
         self.db = db
-        if len(options) < 25:
-            max = len(options)
-        else:
-            max = 25
-        super().__init__(placeholder='Choose stickers to delete', min_values=1, max_values=max, options=options)
+        max = len(options)
+        super().__init__(placeholder='Choose stickers to delete', min_values=1, max_values=max, options=options, row=0)
 
     async def callback(self, interaction: discord.Interaction):
         successful_deletes = []
@@ -438,42 +472,93 @@ class StickerView(ui.View):
         super().__init__(timeout=60)
         self.pages = pages
         self.grid = False
+        self.list = False
         self.current_page = 0
         if options is not None:
             self.options = options
-            self.add_item(StickerSelect(options))
+            self.select = StickerSelect(options[:25])
+            self.current_select_page = 0
+            self.add_item(self.select)
+        else:
+            self.remove_item(self.prevous_options)
+            self.remove_item(self.next_options)
         self.author = interaction.user
         self.latest_interaction = interaction
 
+    @ui.button(emoji='<:previousprevious:1097398096985604196>', style=discord.ButtonStyle.secondary, row=0)
+    async def previous_options(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_select_page == 0:
+            self.current_select_page = len(self.options) // 25
+        else:
+            self.current_select_page = self.current_select_page - 1
+        self.update_select()
+        self.current_page = self.current_select_page * 25
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
     @ui.button(emoji='<:previous:967665422633689138>', style=discord.ButtonStyle.primary)
     async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.grid:
-            if self.current_page == 0:
-                self.current_page = len(self.pages) - 1
-            else:
-                self.current_page = self.current_page - 1
-            await interaction.response.edit_message(embed=self.pages[self.current_page])
-        else:
+        if self.grid:
             if self.current_page == 0:
                 self.current_page = len(self.grid_pages) - 1
             else:
                 self.current_page = self.current_page - 1
             await interaction.response.edit_message(embeds=self.grid_pages[self.current_page])
+        elif self.list:
+            if self.current_page == 0:
+                self.current_page = len(self.list_pages) - 1
+            else:
+                self.current_page = self.current_page - 1
+            await interaction.response.edit_message(embed=self.list_pages[self.current_page])
+        else:
+            if self.current_page == 0:
+                self.current_page = len(self.pages) - 1
+                self.current_select_page = (len(self.options) - 1) // 25
+                self.update_select()
+            else:
+                if self.current_page % 25 == 0:
+                    self.current_select_page = self.current_select_page - 1
+                    self.update_select()
+                self.current_page = self.current_page - 1
+            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
 
     @ui.button(emoji='<:next:967665404589801512>', style=discord.ButtonStyle.primary)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.grid:
-            if self.current_page == len(self.pages) - 1:
-                self.current_page = 0
-            else:
-                self.current_page = self.current_page + 1
-            await interaction.response.edit_message(embed=self.pages[self.current_page])
-        else:
+        if self.grid:
             if self.current_page == len(self.grid_pages) - 1:
                 self.current_page = 0
             else:
                 self.current_page = self.current_page + 1
             await interaction.response.edit_message(embeds=self.grid_pages[self.current_page])
+        elif self.list:
+            if self.current_page == len(self.list_pages) - 1:
+                self.current_page = 0
+            else:
+                self.current_page = self.current_page + 1
+            await interaction.response.edit_message(embed=self.list_pages[self.current_page])
+        else:
+            if self.current_page == len(self.pages) - 1:
+                self.current_select_page = 0
+                self.update_select()
+                self.current_page = 0
+            else:
+                self.current_page = self.current_page + 1
+                if self.current_page % 25 == 0:
+                    self.current_select_page = self.current_select_page - 1
+                    self.update_select()
+            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+    @ui.button(emoji='<:nextnext:1097397983265431552>', style=discord.ButtonStyle.secondary, row=0)
+    async def next_options(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.current_select_page == len(self.options) // 25:
+            self.current_select_page = 0
+        else:
+            self.current_select_page = self.current_select_page + 1
+        self.update_select()
+        self.current_page = self.current_select_page * 25
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+    def update_select(self):
+        self.select.options = self.options[self.current_select_page * 25:(self.current_select_page + 1) * 25]
     
     async def interaction_check(self, interaction: discord.Interaction):
         result = interaction.user.id == self.author.id
@@ -486,6 +571,9 @@ class StickerView(ui.View):
         if self.grid:
             self.grid_pages[self.current_page][0].color = None
             await self.latest_interaction.edit_original_response(embeds=self.grid_pages[self.current_page], view=self)
+        elif self.grid:
+            self.list_pages[self.current_page].color = None
+            await self.latest_interaction.edit_original_response(embed=self.list_pages[self.current_page], view=self)
         else:
             self.pages[self.current_page].color = None
             await self.latest_interaction.edit_original_response(embed=self.pages[self.current_page], view=self)
@@ -493,42 +581,104 @@ class StickerView(ui.View):
 
 class StickerSelect(ui.Select):
     def __init__(self, options):
-        super().__init__(placeholder='Choose a sticker to view', min_values=1, max_values=1, options=options)
+        super().__init__(placeholder='Choose a sticker to view', min_values=1, max_values=1, options=options, row=1)
 
     async def callback(self, interaction: discord.Interaction):
         self.view.current_page = int(self.values[0])
         await interaction.response.edit_message(embed=self.view.pages[self.view.current_page])
 
 class ViewView(StickerView):
-    def __init__(self, pages, grid_pages, options, db, interaction):
+    def __init__(self, pages, grid_pages, list_pages, options, db, interaction):
         super().__init__(pages=pages, options=options, interaction=interaction)
         self.grid_pages = grid_pages
+        self.list_pages = list_pages
         self.db = db
-        if interaction.user.nick != pages[0].author.name:
-            self.add_item(StealButton(self))
+        self.remove_item(self.single_view)
+        if interaction.user.nick != pages[0].author.name and interaction.user.name != pages[0].author.name:
+            self.steal = StealButton(self)
+            self.add_item(self.steal)
 
-    @ui.button(label='Grid', style=discord.ButtonStyle.secondary)
+    @ui.button(label='Single', style=discord.ButtonStyle.secondary, row=2)
+    async def single_view(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.remove_item(self.single_view)
+
+        if self.grid:
+            self.current_page = self.current_page * 4
+            self.remove_item(self.list_view)
+            self.add_item(self.grid_view)
+            self.add_item(self.list_view)
+            self.grid = False
+        else:
+            self.current_page = self.current_page * 16
+            self.add_item(self.list_view)
+            self.list = False
+        
+        self.add_item(self.select)
+        self.remove_item(self.next_page)
+        self.remove_item(self.previous_page)
+        self.add_item(self.previous_options)
+        self.add_item(self.previous_page)
+        self.add_item(self.next_page)
+        self.add_item(self.next_options)
+        if interaction.user.nick != self.pages[0].author.name and interaction.user.name != self.pages[0].author.name:
+            self.add_item(self.steal)
+
+        await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+    @ui.button(label='Grid', style=discord.ButtonStyle.secondary, row=2)
     async def grid_view(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.grid = not self.grid
+        self.remove_item(self.grid_view)
+
+        if self.list:
+            self.current_page = self.current_page * 4
+            self.add_item(self.list_view)
+        else:
+            if interaction.user.nick != self.pages[0].author.name and interaction.user.name != self.pages[0].author.name:
+                self.remove_item(self.steal)
+            self.current_page = self.current_page // 4
+            self.remove_item(self.select)
+            self.remove_item(self.previous_options)
+            self.remove_item(self.next_options)
+            self.remove_item(self.list_view)
+            self.add_item(self.single_view)
+            self.add_item(self.list_view)
+
+        self.grid = True
+        self.list = False
+
+        await interaction.response.edit_message(embeds=self.grid_pages[self.current_page], view=self)
+
+    @ui.button(label='List', style=discord.ButtonStyle.secondary, row=2)
+    async def list_view(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.remove_item(self.list_view)
+
         if self.grid:
             self.current_page = self.current_page // 4
-            self.remove_item(self.children[-1])
-            if interaction.user.nick != self.pages[0].author.name:
-                self.remove_item(self.children[-1])
-            button.label='Single'
-            await interaction.response.edit_message(embeds=self.grid_pages[self.current_page], view=self)
+            self.add_item(self.grid_view)
+            self.grid = False
         else:
-            self.current_page = self.current_page * 4
-            self.add_item(StickerSelect(self.options))
-            if interaction.user.nick != self.pages[0].author.name:
-                self.add_item(StealButton(self))
-            button.label='Grid'
-            await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+            if interaction.user.nick != self.pages[0].author.name and interaction.user.name != self.pages[0].author.name:
+                self.remove_item(self.steal)
+            self.current_page = self.current_page // 16
+            self.remove_item(self.select)
+            self.remove_item(self.previous_options)
+            self.remove_item(self.next_options)
+            self.remove_item(self.grid_view)
+            self.add_item(self.single_view)
+            self.add_item(self.grid_view)
+        self.list = True
+
+        await interaction.response.edit_message(embed=self.list_pages[self.current_page], view=self)
 
 class ShareView(ui.View):
-    def __init__(self, sticker_id, name, db):
+    def __init__(self, sticker_id, name, db, user_id):
         super().__init__()
+        self.user_id = user_id
         self.add_item(SingleStealButton(sticker_id, name, db))
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        result = interaction.user.id != self.user_id
+        return result
     
     async def on_timeout(self):
         for child in self.children:
@@ -536,29 +686,25 @@ class ShareView(ui.View):
         await self.latest_interaction.edit_original_response(view=self)
         return
 
-class ListView(StickerView):
-    def __init__(self, pages, interaction):
-        super().__init__(pages=pages, options=None, interaction=interaction)
-
 class SingleStealButton(ui.Button):
     def __init__(self, sticker_id, name, db):
-        super().__init__(label='Steal', style=discord.ButtonStyle.secondary)
+        super().__init__(label='Steal', style=discord.ButtonStyle.green)
         self.sticker_id = sticker_id
         self.name = name
         self.db = db
     
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(StealModal(self.sticker_id, self.db, self.name))
+        await attempt_steal(self.sticker_id, self.db, interaction, name=self.name)
 
 class StealButton(ui.Button):
     def __init__(self, parent):
-        super().__init__(label='Steal', style=discord.ButtonStyle.secondary)
+        super().__init__(label='Steal', style=discord.ButtonStyle.green, row=0)
         self.parent = parent
 
     async def callback(self, interaction: discord.Interaction):
         sticker_id = int(self.parent.pages[self.parent.current_page].image.url.split('/')[-1].split('.')[0])
         name = self.parent.pages[self.parent.current_page].title
-        await interaction.response.send_modal(StealModal(sticker_id, self.parent.db, name))
+        await attempt_steal(sticker_id, self.parent.db, interaction, name)
 
 class EditView(StickerView):
     def __init__(self, pages, options, interaction, db):
@@ -643,6 +789,11 @@ class EditModal(ui.Modal, title='Edit Sticker'):
             self.parent.pages[self.parent.current_page].description = alias_description
             self.parent.children[4].options[self.parent.current_page].label = name
             await interaction.response.edit_message(embed=self.parent.pages[self.parent.current_page], view=self.parent)
+
+async def attempt_steal(sticker_id, db, interaction, name = '', ):
+    if await db.fetchval('SELECT EXISTS(SELECT 1 FROM users_stickers WHERE user_id = $1 AND sticker_id = $2)', interaction.user.id, sticker_id):
+        return await interaction.response.send_message('You already have this sticker!', ephemeral=True)
+    await interaction.response.send_modal(StealModal(sticker_id, db, name))
 
 class StealModal(ui.Modal, title='Steal Sticker'):
     def __init__(self, sticker_id, db, name = ''):
