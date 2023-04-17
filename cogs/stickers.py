@@ -730,9 +730,12 @@ class EditView(StickerView):
             await interaction.response.send_message('idk something went wrong', ephemeral=True)
         else:
             self.pages.pop(self.current_page)
-            self.children[4].options.pop(self.current_page)
-            for i in range(self.current_page, len(self.children[4].options)):
-                self.children[4].options[i].value  = str(int(self.children[4].options[i].value) - 1)
+            self.select.options.pop(self.current_page % 25)
+            self.options.pop(self.current_page)
+            for i in range(self.current_page % 25, len(self.select.options)):
+                self.select.options[i].value = str(int(self.select.options[i].value) - 1)
+            for i in range(self.current_page, len(self.options)):
+                self.options[i].value = str(int(self.options[i].value) - 1)
 
             if self.current_page > len(self.pages) - 1:
                 self.current_page = 0
@@ -787,7 +790,8 @@ class EditModal(ui.Modal, title='Edit Sticker'):
 
             self.parent.pages[self.parent.current_page].title = name
             self.parent.pages[self.parent.current_page].description = alias_description
-            self.parent.children[4].options[self.parent.current_page].label = name
+            self.parent.select.options[self.parent.current_page % 25].label = name
+            self.parent.options[self.parent.current_page].label = name
             await interaction.response.edit_message(embed=self.parent.pages[self.parent.current_page], view=self.parent)
 
 async def attempt_steal(sticker_id, db, interaction, name = '', ):
