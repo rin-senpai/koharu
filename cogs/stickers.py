@@ -711,7 +711,7 @@ class EditView(StickerView):
         super().__init__(pages=pages, options=options, interaction=interaction)
         self.db = db
 
-    @ui.button(label='Edit', style=discord.ButtonStyle.secondary)
+    @ui.button(label='Edit', style=discord.ButtonStyle.secondary, row=2)
     async def edit_sticker(self, interaction: discord.Interaction, button: discord.ui.Button):
         name = self.pages[self.current_page].title
         sticker_id = await self.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND name = $2', interaction.user.id, name)
@@ -722,7 +722,7 @@ class EditView(StickerView):
             sticker_aliases = '\n'.join(aliases)
         await interaction.response.send_modal(EditModal(sticker_id, name, sticker_aliases, self.db, self))
 
-    @ui.button(label='Delete', style=discord.ButtonStyle.danger)
+    @ui.button(label='Delete', style=discord.ButtonStyle.danger, row=2)
     async def delete_sticker(self, interaction: discord.Interaction, button: discord.ui.Button):
         name = self.pages[self.current_page].title
         status = await self.db.execute('DELETE FROM users_stickers WHERE user_id = $1 AND name = $2', interaction.user.id, name)
