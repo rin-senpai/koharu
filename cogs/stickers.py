@@ -855,14 +855,15 @@ class ReplyModal(ui.Modal, title='Reply'):
         self.add_item(self.name_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message('Pain required response.', ephemeral=True)
-        await interaction.delete_original_response()
-
+        
         name = self.name_input.value.replace('\n', ' ')
         sticker_id = await self.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
         if sticker_id is None:
             return await interaction.response.send_message('Unreal bro!!', ephemeral=True)
         sticker_url = await self.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_id)
+
+        await interaction.response.send_message('Pain required response.', ephemeral=True)
+        await interaction.delete_original_response()
 
         webhook = await interaction.channel.create_webhook(name='Impostor')
         await self.message.reply(content=f'Replying to {self.message.author.mention}:', mention_author=False)
