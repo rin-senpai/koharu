@@ -12,7 +12,12 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             name='Steal',
             callback=self.steal
         )
+        self.sticker_reply_ctx_menu = app_commands.ContextMenu(
+            name='Sticker Reply',
+            callback=self.reply
+        )
         self.bot.tree.add_command(self.steal_ctx_menu)
+        self.bot.tree.add_command(self.sticker_reply_ctx_menu)
 
     sticker = app_commands.Group(name='sticker', description='Finally, a sticker system')
 
@@ -111,6 +116,9 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
         await interaction.response.send_message('Pain required response.', ephemeral=True)
         await interaction.delete_original_response()
+
+    async def reply(self, interaction: discord.Interaction, message: discord.Message):
+        await interaction.response.send_modal(ReplyModal(message, self.bot.db))
 
     @sticker.command(name='delete', description='Deletes stickers from your collection')
     async def delete(self, interaction: discord.Interaction, names: str = ''):
@@ -836,6 +844,30 @@ class StealModal(ui.Modal, title='Steal Sticker'):
         await self.db.execute('INSERT INTO users_stickers (user_id, sticker_id, name, aliases) VALUES ($1, $2, $3, $4)', interaction.user.id, self.sticker_id, name, aliases_list)
 
         await interaction.response.send_message(embed=generate_confirmation_embed('Stole', name, aliases_breakdown, aliases_success, color=0xd19cf0), ephemeral=True)
+
+class ReplyModal(ui.Modal, title='Reply'):
+    def __init__(self, message: discord.Message, db):
+        super().__init__()
+        self.message = message
+        self.db = db
+
+        self.name_input = ui.TextInput(label='Sticker Name', style = discord.TextStyle.short, required=True, min_length=1, max_length=100)
+        self.add_item(self.name_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.send_message('Pain required response.', ephemeral=True)
+        await interaction.delete_original_response()
+
+        name = self.name_input.value.replace('\n', ' ')
+        sticker_id = await self.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
+        if sticker_id is None:
+            return await interaction.response.send_message('Unreal bro!!', ephemeral=True)
+        sticker_url = await self.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_id)
+
+        webhook = await interaction.channel.create_webhook(name='Impostor')
+        await self.message.reply(content=f'Replying to {self.message.author.mention}:', mention_author=False)
+        await webhook.send(content=sticker_url, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
+        await webhook.delete()
 
 async def setup(bot):
     await bot.add_cog(Stickers(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
