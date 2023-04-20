@@ -4,10 +4,9 @@ from PIL import Image, ImageSequence
 from io import BytesIO
 import validators
 import requests
-import time
+import aiohttp
 
 def resize(file, filename, width, height):
-    start_time = time.time()
     image = Image.open(BytesIO(file))
     output = BytesIO()
     if filename.endswith('.gif'):
@@ -31,3 +30,11 @@ def is_image_url(url):
     if r.headers["content-type"] in image_formats:
       return True
     return False
+
+async def url_to_file(url, filename):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return None
+            data = BytesIO(await resp.read())
+            return discord.File(data, filename)

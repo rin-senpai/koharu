@@ -2,8 +2,12 @@ import discord
 from discord import ui, app_commands
 from discord.ext import commands
 import requests
-from .utils.image import resize, is_image_url
+from .utils.image import resize, is_image_url, url_to_file
 from emoji import emoji_count
+import re
+import asyncio
+import aiohttp
+from async_timeout import timeout
 
 class Stickers(commands.Cog, description='only took multiple years (I think?)'):
     def __init__(self, bot):
@@ -289,24 +293,64 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         return pages
                 
 
-    """ @commands.Cog.listener()
+    @commands.Cog.listener()
     async def on_message(self, message):
         if ';' in message.content:
-            guild = await self.bot.fetch_guild(722386163356270662)
+            guild = await self.bot.fetch_guild(722386163356270662) # 722386163356270662 # 752420682939236432
             emojis = []
+            is_emoji = [False]
             split_message = (message.content).split(';')
             skip = False
             for i in range(1, len(split_message) - 1):
+                if len(split_message) != 1 and split_message[i-1] != '':
+                    if split_message[i-1][-1] == '\\':
+                        if len(split_message[i-1]) > 1:
+                            if split_message[i-1][-2] == '\\':
+                                skip = False
+                            else:
+                                skip = True
+                        else:
+                            skip = True
                 if skip:
                     skip = False
+                    if i > 1:
+                        if is_emoji[i-1] is False:
+                            split_message[i] = ';' + split_message[i]
+                    is_emoji.append(False)
                     continue
-                split_message[i] = split_message[i].strip().replace('\n', ' ')
-                sticker = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR ((ARRAY_TO_STRING(aliases, $4) LIKE $3)))', message.author.id, split_message[i], '%' + split_message[i] + '%', ';')
+                split_message[i] = split_message[i].replace('\n', ' ')
+                sticker = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', message.author.id, split_message[i])
                 if sticker is None:
+                    if i > 1:
+                        if is_emoji[i-1] is False:
+                            split_message[i] = ';' + split_message[i]
+                    is_emoji.append(False)
                     continue
-                sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker[0])
-                emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{sticker[1]}', image=requests.get(sticker_url).content)
+                emoji_url = await self.bot.db.fetchval('SELECT emoji_url FROM stickers WHERE sticker_id = $1', sticker[0])
+                filtered_name = re.sub(r'[^a-zA-Z0-9_]+', '', sticker[1].replace(' ', '_'))
+                if filtered_name == '':
+                    filtered_name = 'emoji'
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(emoji_url) as resp:
+                        image = await resp.read()
+                try:
+                    async with timeout(5):
+                        emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{filtered_name}', image=image)
+                except asyncio.TimeoutError: # rate limited
+                    for emoji in emojis:
+                        await guild.delete_emoji(emoji)
+                    return await message.reply('idk you probably got rate limited')
+                except discord.HTTPException as e:
+                    for emoji in emojis:
+                        await guild.delete_emoji(emoji)
+                    if e.code == 50138: # too big
+                        return await message.reply(f'Uhh {sticker[1]} is too big')
+                    elif e.code == 30008: # reached max number of emojis
+                        return await message.reply(f'too many emojis in that server')
+                    else:
+                        return print(e)
                 emojis.append(emoji)
+                is_emoji.append(True)
                 split_message[i] = str(emoji)
                 skip = True
             
@@ -316,14 +360,12 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 return
 
             webhook = await message.channel.create_webhook(name='Impostor')
-            await webhook.send(content=emoji_message, username=message.author.nick, avatar_url= message.author.display_avatar)
+            await webhook.send(content=emoji_message, username=message.author.display_name, avatar_url= message.author.display_avatar)
             await message.delete()
             await webhook.delete()
 
             for emoji in emojis:
                 await guild.delete_emoji(emoji)
-
-            # I DOUBT THIS WILL HELP BUT CHECK IF IT'S FASTER ON MOBILE HOTSPOT """
 
 async def cleanup_name(name, db, user_id, prev_name = ''):
     breakdown = ''
@@ -579,7 +621,7 @@ class StickerView(ui.View):
         if self.grid:
             self.grid_pages[self.current_page][0].color = None
             await self.latest_interaction.edit_original_response(embeds=self.grid_pages[self.current_page], view=self)
-        elif self.grid:
+        elif self.list:
             self.list_pages[self.current_page].color = None
             await self.latest_interaction.edit_original_response(embed=self.list_pages[self.current_page], view=self)
         else:
@@ -855,7 +897,6 @@ class ReplyModal(ui.Modal, title='Reply'):
         self.add_item(self.name_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        
         name = self.name_input.value.replace('\n', ' ')
         sticker_id = await self.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
         if sticker_id is None:
@@ -866,8 +907,8 @@ class ReplyModal(ui.Modal, title='Reply'):
         await interaction.delete_original_response()
 
         webhook = await interaction.channel.create_webhook(name='Impostor')
-        await self.message.reply(content=f'Replying to {self.message.author.mention}:', mention_author=False)
-        await webhook.send(content=sticker_url, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
+        file = await url_to_file(sticker_url, sticker_url.split('/')[-1])
+        await webhook.send(content=self.message.jump_url, file=file, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
         await webhook.delete()
 
 async def setup(bot):
