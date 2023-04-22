@@ -298,6 +298,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         if ';' in message.content:
             guild = await self.bot.fetch_guild(722386163356270662) # 722386163356270662 # 752420682939236432
             emojis = []
+            emoji_ids = []
             is_emoji = False
             split_message = (message.content).split(';')
             skip = False
@@ -333,23 +334,27 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(emoji_url) as resp:
                         image = await resp.read()
-                try:
-                    async with timeout(5):
-                        emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{filtered_name}', image=image)
-                except asyncio.TimeoutError: # rate limited
-                    for emoji in emojis:
-                        await guild.delete_emoji(emoji)
-                    return await message.reply('idk you probably got rate limited')
-                except discord.HTTPException as e:
-                    for emoji in emojis:
-                        await guild.delete_emoji(emoji)
-                    if e.code == 50138: # too big
-                        return await message.reply(f'Uhh {sticker[1]} is too big')
-                    elif e.code == 30008: # reached max number of emojis
-                        return await message.reply(f'too many emojis in that server')
-                    else:
-                        return print(e)
-                emojis.append(emoji)
+                if sticker[0] not in emoji_ids:
+                    try:
+                        async with timeout(5):
+                            emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{filtered_name}', image=image)
+                    except asyncio.TimeoutError: # rate limited
+                        for emoji in emojis:
+                            await guild.delete_emoji(emoji)
+                        return await message.reply('idk you probably got rate limited')
+                    except discord.HTTPException as e:
+                        for emoji in emojis:
+                            await guild.delete_emoji(emoji)
+                        if e.code == 50138: # too big
+                            return await message.reply(f'Uhh {sticker[1]} is too big')
+                        elif e.code == 30008: # reached max number of emojis
+                            return await message.reply(f'too many emojis in that server')
+                        else:
+                            return print(e)
+                    emojis.append(emoji)
+                    emoji_ids.append(sticker[0])
+                else:
+                    emoji = emojis[emoji_ids.index(sticker[0])]
                 is_emoji = True
                 split_message[i] = str(emoji)
                 skip = True
