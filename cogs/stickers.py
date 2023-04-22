@@ -336,12 +336,8 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         image = await resp.read()
                 if sticker[0] not in emoji_ids:
                     try:
-                        async with timeout(5):
+                        async with timeout(2):
                             emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{filtered_name}', image=image)
-                    except asyncio.TimeoutError: # rate limited
-                        for emoji in emojis:
-                            await guild.delete_emoji(emoji)
-                        return await message.reply('idk you probably got rate limited')
                     except discord.HTTPException as e:
                         for emoji in emojis:
                             await guild.delete_emoji(emoji)
@@ -351,6 +347,10 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                             return await message.reply(f'too many emojis in that server')
                         else:
                             return print(e)
+                    except asyncio.TimeoutError: # rate limited
+                        for emoji in emojis:
+                            await guild.delete_emoji(emoji)
+                        return await message.reply('idk you probably got rate limited')
                     emojis.append(emoji)
                     emoji_ids.append(sticker[0])
                 else:
