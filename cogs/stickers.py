@@ -298,10 +298,10 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         if ';' in message.content:
             guild = await self.bot.fetch_guild(722386163356270662) # 722386163356270662 # 752420682939236432
             emojis = []
-            is_emoji = [False]
+            is_emoji = False
             split_message = (message.content).split(';')
             skip = False
-            for i in range(1, len(split_message) - 1):
+            for i in range(1, len(split_message)):
                 if len(split_message) != 1 and split_message[i-1] != '':
                     if split_message[i-1][-1] == '\\':
                         if len(split_message[i-1]) > 1:
@@ -314,17 +314,17 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 if skip:
                     skip = False
                     if i > 1:
-                        if is_emoji[i-1] is False:
+                        if is_emoji is False:
                             split_message[i] = ';' + split_message[i]
-                    is_emoji.append(False)
+                    is_emoji = False
                     continue
                 split_message[i] = split_message[i].replace('\n', ' ')
                 sticker = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', message.author.id, split_message[i])
                 if sticker is None:
                     if i > 1:
-                        if is_emoji[i-1] is False:
+                        if is_emoji is False:
                             split_message[i] = ';' + split_message[i]
-                    is_emoji.append(False)
+                    is_emoji = False
                     continue
                 emoji_url = await self.bot.db.fetchval('SELECT emoji_url FROM stickers WHERE sticker_id = $1', sticker[0])
                 filtered_name = re.sub(r'[^a-zA-Z0-9_]+', '', sticker[1].replace(' ', '_'))
@@ -350,7 +350,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                     else:
                         return print(e)
                 emojis.append(emoji)
-                is_emoji.append(True)
+                is_emoji = True
                 split_message[i] = str(emoji)
                 skip = True
             
@@ -361,7 +361,10 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
             webhook = await message.channel.create_webhook(name='Impostor')
             await webhook.send(content=emoji_message, username=message.author.display_name, avatar_url= message.author.display_avatar)
-            await message.delete()
+            try:
+                await message.delete()
+            except:
+                pass
             await webhook.delete()
 
             for emoji in emojis:
