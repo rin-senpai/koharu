@@ -12,6 +12,8 @@ from async_timeout import timeout
 class Stickers(commands.Cog, description='only took multiple years (I think?)'):
     def __init__(self, bot):
         self.bot = bot
+        self.auto_removed_chars = [' ', '\n']
+        self.invalid_chars = [';', ':', '`']
         self.steal_ctx_menu = app_commands.ContextMenu(
             name='Steal',
             callback=self.steal
@@ -299,38 +301,37 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             guild = await self.bot.fetch_guild(722386163356270662) # 722386163356270662 # 752420682939236432
             emojis = []
             emoji_ids = []
-            is_emoji = False
+            prev_was_emoji = False
+            stickering_escaped = False
             split_message = (message.content).split(';')
-            skip = False
             for i in range(1, len(split_message)):
-                if len(split_message) != 1 and split_message[i-1] != '':
-                    if split_message[i-1][-1] == '\\':
-                        if len(split_message[i-1]) > 1:
-                            if split_message[i-1][-2] == '\\':
-                                skip = False
-                            else:
-                                skip = True
-                        else:
-                            skip = True
-                if skip:
-                    skip = False
-                    if i > 1:
-                        if is_emoji is False:
-                            split_message[i] = ';' + split_message[i]
-                    is_emoji = False
-                    continue
-                split_message[i] = split_message[i].replace('\n', ' ')
-                sticker = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', message.author.id, split_message[i])
+                if len(split_message) != 1:
+                    if split_message[i-1][-1:] == '\\' and split_message[i-1][-2:] != '\\\\':
+                        stickering_escaped = True
+                    else:
+                        stickering_escaped = False
+                
+                sticker = None
+                if not stickering_escaped:
+                    if split_message[i] != '':
+                        if split_message[i][:1] not in self.auto_removed_chars and split_message[i][-1:] not in self.auto_removed_chars:
+                            for invalid_char in self.invalid_chars:
+                                if invalid_char not in split_message[i]:
+                                    sticker = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', message.author.id, split_message[i])
+                
                 if sticker is None:
-                    if i > 1:
-                        if is_emoji is False:
-                            split_message[i] = ';' + split_message[i]
-                    is_emoji = False
+                    if not prev_was_emoji:
+                        split_message[i] = ';' + split_message[i]
+                    prev_was_emoji = False
                     continue
+
+                prev_was_emoji = True
+
                 emoji_url = await self.bot.db.fetchval('SELECT emoji_url FROM stickers WHERE sticker_id = $1', sticker[0])
-                filtered_name = re.sub(r'[^a-zA-Z0-9_]+', '', sticker[1].replace(' ', '_'))
-                if filtered_name == '':
+                filtered_name = re.sub(r'[^a-zA-Z0-9_]+', '_', sticker[1])
+                if filtered_name == '_':
                     filtered_name = 'emoji'
+
                 async with aiohttp.ClientSession() as session:
                     async with session.get(emoji_url) as resp:
                         image = await resp.read()
@@ -355,9 +356,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                     emoji_ids.append(sticker[0])
                 else:
                     emoji = emojis[emoji_ids.index(sticker[0])]
-                is_emoji = True
                 split_message[i] = str(emoji)
-                skip = True
             
             emoji_message = ''.join(split_message)
 
