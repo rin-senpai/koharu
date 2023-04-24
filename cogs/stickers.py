@@ -8,6 +8,7 @@ import re
 import asyncio
 import aiohttp
 from async_timeout import timeout
+import math
 
 class Stickers(commands.Cog, description='only took multiple years (I think?)'):
     def __init__(self, bot):
@@ -173,7 +174,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             ).set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar).set_footer(text=f'Page {i + 1}/{len(stickers)}'))
             options.append(discord.SelectOption(label=sticker[0], value=i))
             if i % 4 == 0:
-                grid_pages.append([discord.Embed(color=0xef5a93, url='https://ko-fi.com/voxeldev').set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar).set_footer(text=f'Page {i//4 + 1}/{len(stickers) // 4}')])
+                grid_pages.append([discord.Embed(color=0xef5a93, url='https://ko-fi.com/voxeldev').set_image(url=sticker_url).set_author(name=sticker_user.display_name, icon_url=sticker_user.display_avatar).set_footer(text=f'Page {i//4 + 1}/{math.ceil(len(stickers) / 4)}')])
             else:
                 grid_pages[-1].append(discord.Embed(url='https://ko-fi.com/voxeldev').set_image(url=sticker_url))
             i += 1
