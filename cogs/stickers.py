@@ -181,7 +181,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
         list_pages = await self.generate_list(stickers)
         
-        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot.db, interaction), ephemeral=shown)
+        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot.db, interaction), ephemeral=not shown)
 
     @sticker.command(name='edit', description='Edit stickers from your collection')
     async def edit(self, interaction: discord.Interaction, name: str = ''):
