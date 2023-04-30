@@ -150,7 +150,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @sticker.command(name='view', description='View stickers from yours or others collections')
-    async def view(self, interaction: discord.Interaction, user: discord.User = None, hidden: bool = True):
+    async def view(self, interaction: discord.Interaction, user: discord.User = None, shown: bool = False):
         if user is None:
             sticker_user = interaction.user
         else:
@@ -181,7 +181,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
         list_pages = await self.generate_list(stickers)
         
-        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot.db, interaction), ephemeral=hidden)
+        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot.db, interaction), ephemeral=shown)
 
     @sticker.command(name='edit', description='Edit stickers from your collection')
     async def edit(self, interaction: discord.Interaction, name: str = ''):
