@@ -4,6 +4,7 @@ from discord.ext import commands
 import requests
 import asyncio
 from .utils.image import resize, is_image_url
+from random import randint
 
 class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I don\'t mind if others find utility in me. 👉 👈'):
     def __init__(self, bot):
@@ -12,7 +13,7 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
     @app_commands.command(name='color', description='Sets your role color. Give the hex code of the color you want.')
     async def color(self, interaction: discord.Interaction, color: str = None, random: bool = False):
         if random:
-            role_color = discord.Color.random()
+            role_color = discord.Color(randint(0, 255) << 16 | randint(0, 255) << 8 | randint(0, 255))
         else:
             if color is None:
                 role_color = discord.Color.default()
