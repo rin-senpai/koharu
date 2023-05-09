@@ -5,40 +5,43 @@ import requests
 import asyncio
 from .utils.image import resize, is_image_url
 from random import randint
+import re
 
 class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I don\'t mind if others find utility in me. 👉 👈'):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name='color', description='Sets your role color. Give the hex code of the color you want.')
-    async def color(self, interaction: discord.Interaction, color: str = None, random: bool = False):
-        if random:
-            role_color = discord.Color(randint(0, 255) << 16 | randint(0, 255) << 8 | randint(0, 255))
-        else:
-            if color is None:
-                role_color = discord.Color.default()
-            else:
-                if not color.startswith('#'):
-                    color = '#' + color
-                try:
-                    role_color = discord.Color.from_str(color)
-                except:
-                    return await interaction.response.send_message('That doesn\'t seem to be a valid color.', ephemeral=True)
+    @app_commands.command(name='color', description='Sets your role color when you provide a hex code or RGB. Shows your current color when not provided with one.')
+    async def color(self, interaction: discord.Interaction, color: str = None, random: bool = False, reset: bool = False):
         role = discord.utils.get(interaction.guild.roles, name=f'{interaction.user.id}')
-        if role is None:
-            role = await interaction.guild.create_role(name=f'{interaction.user.id}', color=role_color)
-            await interaction.user.add_roles(role)
-            if color is None:
-                return await interaction.response.send_message('Your role has been created.', ephemeral=True)
+        if reset:
+            role_color = discord.Color.default()
+        elif random:
+            role_color = discord.Color(randint(0, 255) << 16 | randint(0, 255) << 8 | randint(0, 255)) # generate each r/g/b value and bitshift it to the right spot in hex. it uses bitwise OR to combine them (as they don't overlap. regular plus could be used but bitwise is funni)
+        elif color is None:
+            if role != None:
+                return await interaction.response.send_message(f'Your current role color is {str(role.color)}.', ephemeral=True)
             else:
-                return await interaction.response.send_message(f'Your role has been created and updated to {str(role_color)}.', ephemeral=True)
-        await role.edit(colour=role_color)
+                return await interaction.response.send_message('You don\'t have a role yet.. Try checking `/nani` for help.', ephemeral=True)
+        else:
+            color_match = re.match(r"^.*?([\dA-Fa-f]{6}).*$", color) # matches the first occurrence of 6 consecutive hex characters, else returns None when not found
+            if color_match != None:
+                role_color = discord.Color.from_str("#" + color_match.group(1))
+            else:
+                color_match = re.match(r"^\D*(\d+)\D+(\d+)\D+(\d+).*$", color) # matches 3 groups of digits separated by non-digits, else returns None when not all 3 groups are present
+                if color_match != None:
+                    role_color = discord.Color.from_rgb(color_match.group(1), color_match.group(2), color_match.group(3))
+                else:
+                    return await interaction.response.send_message('That doesn\'t seem to be a valid color.', ephemeral=True)
+        if role is None:
+            role_is_new = True
+            role = await interaction.guild.create_role(name=f'{interaction.user.id}', color=role_color)
+        else:
+            role_is_new = False
+            await role.edit(colour=role_color)
         if role not in interaction.user.roles:
             await interaction.user.add_roles(role)
-        if color is None and random is False:
-            return await interaction.response.send_message('Your role has been reset.', ephemeral=True)
-        else:
-            return await interaction.response.send_message(f'Your role has been updated to {str(role_color)}.', ephemeral=True)
+        return await interaction.response.send_message(f'Your role has been {"created and " if role_is_new else ""}{"reset" if reset else (("randomized to " if random else "updated to ") + str(role_color))}', ephemeral=True)
 
     @color.error
     async def color_error(self, ctx, error):
