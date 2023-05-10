@@ -11,7 +11,7 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name='color', description='Sets your role color when you provide a hex code or RGB. Shows your current color when it's left blank.')
+    @app_commands.command(name='color', description='Sets your role color when you provide a hex code or RGB. Shows your current color when it\'s left blank.')
     async def color(self, interaction: discord.Interaction, color: str = None, random: bool = False, reset: bool = False):
         return_role_color = False
         if reset:
