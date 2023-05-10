@@ -28,13 +28,13 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
             else:
                 color_match = re.match(r"^\D*(\d+)\D+(\d+)\D+(\d+).*$", color) # matches 3 groups of digits separated by non-digits, else returns None when not all 3 groups are present
                 if color_match != None:
-                    role_color = discord.Color.from_rgb(color_match.group(1), color_match.group(2), color_match.group(3))
+                    role_color = discord.Color.from_rgb(int(color_match.group(1)), int(color_match.group(2)), int(color_match.group(3)))
                 else:
                     return await interaction.response.send_message('That doesn\'t seem to be a valid color.', ephemeral=True)
-        role = discord.utils.get(interaction.guild.roles, name=f'{interaction.user.id}')
+        role = discord.utils.get(interaction.guild.roles, name=str(interaction.user.id))
         if role is None:
             role_is_new = True
-            role = await interaction.guild.create_role(name=f'{interaction.user.id}', color=role_color)
+            role = await interaction.guild.create_role(name=str(interaction.user.id), color=role_color)
         else:
             role_is_new = False
             if not return_role_color:
