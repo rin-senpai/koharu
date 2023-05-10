@@ -11,18 +11,16 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name='color', description='Sets your role color when you provide a hex code or RGB. Shows your current color when not provided with one.')
+    @app_commands.command(name='color', description='Sets your role color when you provide a hex code or RGB. Shows your current color when it's left blank.')
     async def color(self, interaction: discord.Interaction, color: str = None, random: bool = False, reset: bool = False):
-        role = discord.utils.get(interaction.guild.roles, name=f'{interaction.user.id}')
+        return_role_color = False
         if reset:
             role_color = discord.Color.default()
         elif random:
             role_color = discord.Color(randint(0, 255) << 16 | randint(0, 255) << 8 | randint(0, 255)) # generate each r/g/b value and bitshift it to the right spot in hex. it uses bitwise OR to combine them (as they don't overlap. regular plus could be used but bitwise is funni)
         elif color is None:
-            if role != None:
-                return await interaction.response.send_message(f'Your current role color is {str(role.color)}.', ephemeral=True)
-            else:
-                return await interaction.response.send_message('You don\'t have a role yet.. Try checking `/nani` for help.', ephemeral=True)
+            return_role_color = True
+            role_color = discord.Color.default()
         else:
             color_match = re.match(r"^.*?([\dA-Fa-f]{6}).*$", color) # matches the first occurrence of 6 consecutive hex characters, else returns None when not found
             if color_match != None:
@@ -33,14 +31,21 @@ class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I
                     role_color = discord.Color.from_rgb(color_match.group(1), color_match.group(2), color_match.group(3))
                 else:
                     return await interaction.response.send_message('That doesn\'t seem to be a valid color.', ephemeral=True)
+        role = discord.utils.get(interaction.guild.roles, name=f'{interaction.user.id}')
         if role is None:
             role_is_new = True
             role = await interaction.guild.create_role(name=f'{interaction.user.id}', color=role_color)
         else:
             role_is_new = False
-            await role.edit(colour=role_color)
+            if not return_role_color:
+                await role.edit(colour=role_color)
         if role not in interaction.user.roles:
             await interaction.user.add_roles(role)
+        if return_role_color:
+            if role.color == discord.Color.default():
+                return await interaction.response.send_message('Your role currently has no color. Provide a hex code like ff3c74 or RGB values like 255 60 112.', ephemeral=True)
+            else:
+                return await interaction.response.send_message(f'Your current role color is {str(role.color)}.', ephemeral=True)
         return await interaction.response.send_message(f'Your role has been {"created and " if role_is_new else ""}{"reset" if reset else (("randomized to " if random else "updated to ") + str(role_color))}', ephemeral=True)
 
     @color.error
