@@ -313,7 +313,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         stickering_escaped = False
                 
                 sticker = None
-                if not stickering_escaped:
+                if not stickering_escaped and i != len(split_message) - 1:
                     if split_message[i] != '':
                         if split_message[i][:1] not in self.auto_removed_chars and split_message[i][-1:] not in self.auto_removed_chars:
                             for invalid_char in self.invalid_chars:
