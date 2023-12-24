@@ -176,4 +176,4 @@ def guild_kickban_embed(user, member, reason, type):
     return guild_embed
 
 async def setup(bot):
-    await bot.add_cog(Moderation(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
+    await bot.add_cog(Moderation(bot))

@@ -172,4 +172,4 @@ class Nani(commands.Cog):
         self.bot.help_command = self._original_help_command
 
 async def setup(bot):
-    await bot.add_cog(Nani(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
+    await bot.add_cog(Nani(bot))

@@ -37,4 +37,4 @@ class NSFW(commands.Cog, description='The cultured commands. Unfortunately they 
         await interaction.response.send_message('https://cdn.discordapp.com/attachments/752052271935914067/967798988222890035/unknown.png')
        
 async def setup(bot):
-    await bot.add_cog(NSFW(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
+    await bot.add_cog(NSFW(bot))

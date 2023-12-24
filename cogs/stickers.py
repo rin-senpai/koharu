@@ -12,19 +12,41 @@ import math
 
 class Stickers(commands.Cog, description='only took multiple years (I think?)'):
     def __init__(self, bot):
+        self.GUILD_ID = 722386163356270662
+        self.STICKER_CHANNEL_ID = 1067821745379225663
+        self.EMOJI_CHANNEL_ID = 1067822653655748718
+        
         self.bot = bot
+        
         self.auto_removed_chars = [' ', '\n']
         self.invalid_chars = [';', ':', '`']
-        self.steal_ctx_menu = app_commands.ContextMenu(
-            name='Steal',
-            callback=self.steal
-        )
+        
         self.sticker_reply_ctx_menu = app_commands.ContextMenu(
             name='Sticker Reply',
             callback=self.reply
         )
-        self.bot.tree.add_command(self.steal_ctx_menu)
+        self.react_ctx_menu = app_commands.ContextMenu(
+            name='React',
+            callback=self.react
+        )
+        self.steal_ctx_menu = app_commands.ContextMenu(
+            name='Steal',
+            callback=self.steal
+        )
         self.bot.tree.add_command(self.sticker_reply_ctx_menu)
+        self.bot.tree.add_command(self.react_ctx_menu)
+        self.bot.tree.add_command(self.steal_ctx_menu)
+        
+    async def fetch_sticker_url(self, message_id):
+        sticker_channel = await self.bot.fetch_channel(self.STICKER_CHANNEL_ID)
+        message = await sticker_channel.fetch_message(message_id)
+        return message.attachments[0].url
+    
+    async def fetch_emoji_url(self, message_id):
+        emoji_channel = await self.bot.fetch_channel(self.EMOJI_CHANNEL_ID)
+        message = await emoji_channel.fetch_message(message_id)
+        return message.attachments[0].url
+    
 
     sticker = app_commands.Group(name='sticker', description='Finally, a sticker system')
 
@@ -93,64 +115,73 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         except:
             return await interaction.followup.send('The frick did you do...', ephemeral=True)
 
-        guild = await self.bot.fetch_guild(722386163356270662)
-        emoji_channel = await guild.fetch_channel(1067822653655748718)
-        sticker_channel = await guild.fetch_channel(1067821745379225663)
+        guild = await self.bot.fetch_guild(self.GUILD_ID)
+        sticker_channel = await guild.fetch_channel(self.STICKER_CHANNEL_ID)
+        emoji_channel = await guild.fetch_channel(self.EMOJI_CHANNEL_ID)
 
         emoji_message = await emoji_channel.send(file=emoji)
         sticker_message = await sticker_channel.send(file=sticker)
 
-        emoji_url = emoji_message.attachments[0].url
-        sticker_url = sticker_message.attachments[0].url
+        sticker_message_id = sticker_message.id
+        emoji_message_id = emoji_message.id
 
-        await self.bot.db.execute('INSERT INTO stickers (sticker_id, sticker_url, emoji_url) VALUES (DEFAULT, $1, $2)', sticker_url, emoji_url)
-        sticker_id = await self.bot.db.fetchval('SELECT sticker_id FROM stickers WHERE sticker_url = $1', sticker_url)
+        await self.bot.db.execute('INSERT INTO stickers (sticker_id, sticker_message_id, emoji_message_id) VALUES (DEFAULT, $1, $2)', sticker_message_id, emoji_message_id)
+        sticker_id = await self.bot.db.fetchval('SELECT sticker_id FROM stickers WHERE sticker_message_id = $1', sticker_message_id)
         await self.bot.db.execute('INSERT INTO users_stickers (user_id, sticker_id, name, aliases) VALUES ($1, $2, $3, $4)', interaction.user.id, sticker_id, name, aliases_list)
 
-        await interaction.followup.send(embed=generate_confirmation_embed('Added', name, aliases_breakdown, aliases_success, sticker_url), ephemeral=True)
+        await interaction.followup.send(embed=generate_confirmation_embed('Added', name, aliases_breakdown, aliases_success, sticker_message.attachments[0].url), ephemeral=True)
 
     @sticker.command(name='send', description='Sends a sticker from your collection')
     async def send(self, interaction: discord.Interaction, name: str):
+        await interaction.response.defer(ephemeral=True)
         name = name.replace('\n', ' ')
         sticker_id = await self.bot.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
         if sticker_id is None:
-            return await interaction.response.send_message('Unreal bro!!', ephemeral=True)
-        sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_id)
+            return await interaction.followup.send('Unreal bro!!', ephemeral=True)
+        message_id = await self.bot.db.fetchval('SELECT sticker_message_id FROM stickers WHERE sticker_id = $1', sticker_id)
+        
+        sticker_url = await self.fetch_sticker_url(message_id)
 
         webhook = await interaction.channel.create_webhook(name='Impostor')
         await webhook.send(content=sticker_url, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
         await webhook.delete()
 
-        await interaction.response.send_message('Pain required response.', ephemeral=True)
+        await interaction.followup.send('Pain required response.', ephemeral=True)
         await interaction.delete_original_response()
 
     async def reply(self, interaction: discord.Interaction, message: discord.Message):
-        await interaction.response.send_modal(ReplyModal(message, self.bot.db))
+        await interaction.response.send_modal(ReplyModal(message, self))
+        
+    async def react(self, interaction: discord.Interaction, message: discord.Message):
+        await interaction.response.send_modal(ReactModal(message, self))
 
     @sticker.command(name='delete', description='Deletes stickers from your collection')
     async def delete(self, interaction: discord.Interaction, names: str = ''):
+        await interaction.response.defer(ephemeral=True)
         if names == '':
             options = []
             stickers = await self.bot.db.fetch('SELECT name, sticker_id FROM users_stickers WHERE user_id = $1', interaction.user.id)
             if stickers == []:
-                return await interaction.response.send_message('You have no stickers to delete silly!', ephemeral=True)
+                return await interaction.followup.send('You have no stickers to delete silly!', ephemeral=True)
             i = 1
             for sticker in stickers:
                 options.append(discord.SelectOption(label=sticker[0], value=sticker[1]))
                 i += 1
-            await interaction.response.send_message(view=DeleteView(options, self.bot.db, interaction), ephemeral=True)
+            await interaction.followup.send(view=DeleteView(options, self.bot.db, interaction), ephemeral=True)
         else:
             successful_deletes = []
             names_list = names.split(';')
             for name in names_list:
+                sticker_name = await self.bot.db.fetchval('SELECT name FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
                 status = await self.bot.db.execute('DELETE FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
                 if status != 'DELETE 0':
-                    successful_deletes.append(name)
+                    successful_deletes.append(sticker_name)
             embed = discord.Embed(title=f'{len(successful_deletes)} stickers removed successfully!', description=f'```{" ; ".join(successful_deletes)}```', color=0xeb4969)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     @sticker.command(name='view', description='View stickers from yours or others collections')
     async def view(self, interaction: discord.Interaction, user: discord.User = None, shown: bool = False):
+        await interaction.response.defer(ephemeral = not shown)
         if user is None:
             sticker_user = interaction.user
         else:
@@ -158,15 +189,16 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         stickers = await self.bot.db.fetch('SELECT name, sticker_id, aliases FROM users_stickers WHERE user_id = $1', sticker_user.id)
         if stickers == []:
             if sticker_user.id == interaction.user.id:
-                return await interaction.response.send_message('You have no stickers to view silly!', ephemeral=True)
+                return await interaction.followup.send('You have no stickers to view silly!', ephemeral=True)
             else:
-                return await interaction.response.send_message('They have no stickers to view smh!', ephemeral=True)
+                return await interaction.followup.send('They have no stickers to view smh!', ephemeral=True)
         pages = []
         grid_pages = []
         options = []
         i = 0
         for sticker in stickers:
-            sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker[1])
+            message_id = await self.bot.db.fetchval('SELECT sticker_message_id FROM stickers WHERE sticker_id = $1', sticker[1])
+            sticker_url = await self.fetch_sticker_url(message_id)
             pages.append(discord.Embed(
                 type='image',
                 title=sticker[0],
@@ -181,19 +213,21 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
         list_pages = await self.generate_list(stickers)
         
-        await interaction.response.send_message(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot.db, interaction), ephemeral=not shown)
+        await interaction.followup.send(embed=pages[0], view=ViewView(pages, grid_pages, list_pages, options, self.bot, interaction, sticker_user.id != interaction.user.id), ephemeral=not shown)
 
     @sticker.command(name='edit', description='Edit stickers from your collection')
     async def edit(self, interaction: discord.Interaction, name: str = ''):
         if name == '':
+            await interaction.response.defer(ephemeral=True)
             stickers = await self.bot.db.fetch('SELECT name, sticker_id, aliases FROM users_stickers WHERE user_id = $1', interaction.user.id)
             if stickers == []:
-                return await interaction.response.send_message('You have no stickers to edit silly!', ephemeral=True)
+                return await interaction.followup.send('You have no stickers to edit silly!', ephemeral=True)
             pages = []
             options = []
             i = 0
             for sticker in stickers:
-                sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker[1])
+                message_id = await self.bot.db.fetchval('SELECT sticker_message_id FROM stickers WHERE sticker_id = $1', sticker[1])
+                sticker_url = await self.fetch_sticker_url(message_id)
                 if sticker[2] is not None and sticker[2] != []:
                     alias_description = f'```{" ; ".join(sticker[2])}```'
                     pages.append(discord.Embed(
@@ -211,7 +245,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                 options.append(discord.SelectOption(label=sticker[0], value=i))
                 i += 1
 
-            await interaction.response.send_message(embed=pages[0], view=EditView(pages, options, interaction, self.bot.db), ephemeral=True)
+            await interaction.followup.send(embed=pages[0], view=EditView(pages, options, interaction, self.bot.db), ephemeral=True)
         else:
             name = name.replace('\n', ' ')
             sticker_id = await self.bot.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
@@ -227,11 +261,13 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
     @sticker.command(name='share', description='Shares a sticker from your collection')
     async def share(self, interaction: discord.Interaction, name: str):
+        await interaction.response.defer(ephemeral=True)
         name = name.replace('\n', ' ')
         sticker_details = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
         if sticker_details[0] is None:
-            return await interaction.response.send_message('Unreal bro!!', ephemeral=True)
-        sticker_url = await self.bot.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_details[0])
+            return await interaction.followup.send('Unreal bro!!', ephemeral=True)
+        message_id = await self.bot.db.fetchval('SELECT sticker_message_id FROM stickers WHERE sticker_id = $1', sticker_details[0])
+        sticker_url = await self.fetch_sticker_url(message_id)
 
         embed = discord.Embed(
             type='image',
@@ -239,18 +275,18 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             color=0xef5a93
         ).set_image(url=sticker_url).set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar)
 
-        await interaction.response.send_message(embed=embed, view=ShareView(sticker_details[0], sticker_details[1], self.bot.db, interaction.user.id))
+        await interaction.followup.send(embed=embed, view=ShareView(sticker_details[0], sticker_details[1], self.bot.db, interaction.user.id))
 
 
     async def steal(self, interaction: discord.Interaction, message: discord.Message):
         if message.webhook_id is not None and is_image_url(message.content):
-            sticker_id = await self.bot.db.fetchval('SELECT sticker_id FROM stickers WHERE sticker_url = $1', message.content)
+            sticker_id = int(message.content.split('/')[-1].split('.')[0])
             if sticker_id is None:
-                return await interaction.response.send_message('This isn\'t a sticker xd', ephemeral=True)
+                return await interaction.followup.send('This isn\'t a sticker xd', ephemeral=True)
             if await self.bot.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND sticker_id = $2', interaction.user.id, sticker_id) is not None:
                 return await interaction.response.send_message('You already have that sticker', ephemeral=True)
             return await attempt_steal(sticker_id, self.bot.db, interaction)
-        await interaction.response.send_message('the frick is this disappointing garbage nya?', ephemeral=True)
+        await interaction.followup.send('the frick is this disappointing garbage nya?', ephemeral=True)
 
     async def generate_list(self, stickers):
         line_limit = 16
@@ -299,7 +335,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
     @commands.Cog.listener()
     async def on_message(self, message):
         if ';' in message.content:
-            guild = await self.bot.fetch_guild(722386163356270662) # 722386163356270662 # 752420682939236432
+            guild = await self.bot.fetch_guild(self.GUILD_ID)
             emojis = []
             emoji_ids = []
             prev_was_emoji = False
@@ -328,7 +364,8 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
                 prev_was_emoji = True
 
-                emoji_url = await self.bot.db.fetchval('SELECT emoji_url FROM stickers WHERE sticker_id = $1', sticker[0])
+                message_id = await self.bot.db.fetchval('SELECT emoji_message_id FROM stickers WHERE sticker_id = $1', sticker[0])
+                emoji_url = await self.fetch_emoji_url(message_id)
                 filtered_name = re.sub(r'[^a-zA-Z0-9_]+', '_', sticker[1])
                 if filtered_name == '_':
                     filtered_name = 'emoji'
@@ -338,7 +375,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         image = await resp.read()
                 if sticker[0] not in emoji_ids:
                     try:
-                        async with timeout(2):
+                        async with timeout(4):
                             emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{filtered_name}', image=image)
                     except discord.HTTPException as e:
                         for emoji in emojis:
@@ -346,13 +383,15 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
                         if e.code == 50138: # too big
                             return await message.reply(f'Uhh {sticker[1]} is too big')
                         elif e.code == 30008: # reached max number of emojis
-                            return await message.reply(f'too many emojis in that server')
+                            return await message.reply('too many emojis in that server')
+                        elif e.code == 50035: # ????????
+                            return await message.reply('it\'s the thing...')
                         else:
-                            return print(e)
+                            return await message.reply(e)
                     except asyncio.TimeoutError: # rate limited
                         for emoji in emojis:
                             await guild.delete_emoji(emoji)
-                        return await message.reply('idk you probably got rate limited')
+                        return await message.reply('idk youprobably got rate limited or something')
                     emojis.append(emoji)
                     emoji_ids.append(sticker[0])
                 else:
@@ -364,16 +403,29 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
             if emojis == []:
                 return
 
-            webhook = await message.channel.create_webhook(name='Impostor')
-            await webhook.send(content=emoji_message, username=message.author.display_name, avatar_url= message.author.display_avatar)
             try:
                 await message.delete()
             except:
                 pass
+
+            webhook = await message.channel.create_webhook(name='Impostor')
+            await webhook.send(content=emoji_message, username=message.author.display_name, avatar_url= message.author.display_avatar, wait=True)
             await webhook.delete()
 
             for emoji in emojis:
                 await guild.delete_emoji(emoji)
+            
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        if payload.user_id != self.bot.user.id and re.match(r'\d+_.+', payload.emoji.name):
+            channel = await self.bot.fetch_channel(payload.channel_id)
+            message = await channel.fetch_message(payload.message_id)
+            try:
+                await message.remove_reaction(payload.emoji, self.bot.user)
+            except:
+                pass
+            
+            
 
 async def cleanup_name(name, db, user_id, prev_name = ''):
     breakdown = ''
@@ -646,15 +698,21 @@ class StickerSelect(ui.Select):
         await interaction.response.edit_message(embed=self.view.pages[self.view.current_page])
 
 class ViewView(StickerView):
-    def __init__(self, pages, grid_pages, list_pages, options, db, interaction):
+    def __init__(self, pages, grid_pages, list_pages, options, bot, interaction, steal):
         super().__init__(pages=pages, options=options, interaction=interaction)
         self.grid_pages = grid_pages
         self.list_pages = list_pages
-        self.db = db
+        self.bot = bot
+        self.db = bot.db
+        self.steal = steal
+        self.STICKER_CHANNEL_ID = 1067821745379225663
         self.remove_item(self.single_view)
-        if interaction.user.nick != pages[0].author.name and interaction.user.name != pages[0].author.name:
+        if steal:
             self.steal = StealButton(self)
             self.add_item(self.steal)
+        else:
+            self.send = SendButton(self)
+            self.add_item(self.send)
 
     @ui.button(label='Single', style=discord.ButtonStyle.secondary, row=2)
     async def single_view(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -678,8 +736,10 @@ class ViewView(StickerView):
         self.add_item(self.previous_page)
         self.add_item(self.next_page)
         self.add_item(self.next_options)
-        if interaction.user.nick != self.pages[0].author.name and interaction.user.name != self.pages[0].author.name:
+        if self.steal:
             self.add_item(self.steal)
+        else:
+            self.add_item(self.send)
 
         await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
 
@@ -691,8 +751,10 @@ class ViewView(StickerView):
             self.current_page = self.current_page * 4
             self.add_item(self.list_view)
         else:
-            if interaction.user.nick != self.pages[0].author.name and interaction.user.name != self.pages[0].author.name:
+            if self.steal:
                 self.remove_item(self.steal)
+            else:
+                self.remove_item(self.send)
             self.current_page = self.current_page // 4
             self.remove_item(self.select)
             self.remove_item(self.previous_options)
@@ -700,7 +762,7 @@ class ViewView(StickerView):
             self.remove_item(self.list_view)
             self.add_item(self.single_view)
             self.add_item(self.list_view)
-
+            
         self.grid = True
         self.list = False
 
@@ -715,8 +777,10 @@ class ViewView(StickerView):
             self.add_item(self.grid_view)
             self.grid = False
         else:
-            if interaction.user.nick != self.pages[0].author.name and interaction.user.name != self.pages[0].author.name:
+            if self.steal:
                 self.remove_item(self.steal)
+            else:
+                self.remove_item(self.send)
             self.current_page = self.current_page // 16
             self.remove_item(self.select)
             self.remove_item(self.previous_options)
@@ -756,13 +820,31 @@ class SingleStealButton(ui.Button):
 
 class StealButton(ui.Button):
     def __init__(self, parent):
-        super().__init__(label='Steal', style=discord.ButtonStyle.green, row=0)
+        super().__init__(label='Steal', style=discord.ButtonStyle.green, row=2)
         self.parent = parent
 
     async def callback(self, interaction: discord.Interaction):
         sticker_id = int(self.parent.pages[self.parent.current_page].image.url.split('/')[-1].split('.')[0])
         name = self.parent.pages[self.parent.current_page].title
         await attempt_steal(sticker_id, self.parent.db, interaction, name)
+        
+class SendButton(ui.Button):
+    def __init__(self, parent):
+        super().__init__(label='Send', style=discord.ButtonStyle.green, row=2)
+        self.parent = parent
+
+    async def callback(self, interaction: discord.Interaction):
+        sticker_id = int(self.parent.pages[self.parent.current_page].image.url.split('/')[-1].split('.')[0])
+        
+        message_id = await self.parent.db.fetchval('SELECT sticker_message_id FROM stickers WHERE sticker_id = $1', sticker_id)
+        
+        sticker_channel = await self.parent.bot.fetch_channel(self.parent.STICKER_CHANNEL_ID)
+        message = await sticker_channel.fetch_message(message_id)
+        sticker_url = message.attachments[0].url
+
+        webhook = await interaction.channel.create_webhook(name='Impostor')
+        await webhook.send(content=sticker_url, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
+        await webhook.delete()
 
 class EditView(StickerView):
     def __init__(self, pages, options, interaction, db):
@@ -896,10 +978,11 @@ class StealModal(ui.Modal, title='Steal Sticker'):
         await interaction.response.send_message(embed=generate_confirmation_embed('Stole', name, aliases_breakdown, aliases_success, color=0xd19cf0), ephemeral=True)
 
 class ReplyModal(ui.Modal, title='Reply'):
-    def __init__(self, message: discord.Message, db):
+    def __init__(self, message: discord.Message, stickers):
         super().__init__()
         self.message = message
-        self.db = db
+        self.stickers = stickers
+        self.db = stickers.db
 
         self.name_input = ui.TextInput(label='Sticker Name', style = discord.TextStyle.short, required=True, min_length=1, max_length=100)
         self.add_item(self.name_input)
@@ -909,7 +992,8 @@ class ReplyModal(ui.Modal, title='Reply'):
         sticker_id = await self.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
         if sticker_id is None:
             return await interaction.response.send_message('Unreal bro!!', ephemeral=True)
-        sticker_url = await self.db.fetchval('SELECT sticker_url FROM stickers WHERE sticker_id = $1', sticker_id)
+        message_id = await self.db.fetchval('SELECT sticker_message_id FROM stickers WHERE sticker_id = $1', sticker_id)
+        sticker_url = await self.stickers.fetch_sticker_url(message_id)
 
         await interaction.response.send_message('Pain required response.', ephemeral=True)
         await interaction.delete_original_response()
@@ -918,6 +1002,72 @@ class ReplyModal(ui.Modal, title='Reply'):
         file = await url_to_file(sticker_url, sticker_url.split('/')[-1])
         await webhook.send(content=self.message.jump_url, file=file, username=interaction.user.display_name, avatar_url=interaction.user.display_avatar)
         await webhook.delete()
-
+        
+class ReactModal(ui.Modal, title='React'):
+    def __init__(self, message: discord.Message, stickers):
+        super().__init__()
+        self.message = message
+        self.stickers = stickers
+        self.bot = stickers.bot
+        self.db = stickers.bot.db
+        self.GUILD_ID = stickers.GUILD_ID
+        
+        self.emojis = ui.TextInput(
+            label='Emojis',
+            style=discord.TextStyle.short,
+            required=True,
+            min_length=1,
+            max_length=100
+        )
+        self.add_item(self.emojis)
+        
+    async def on_submit(self, interaction: discord.Interaction):
+        guild = await self.bot.fetch_guild(self.GUILD_ID)
+        emojis = []
+        emoji_ids = []
+        emoji_input = re.split(r'\n|;', self.emojis.value)
+        
+        await interaction.response.send_message('Pain required response.', ephemeral=True)
+        await interaction.delete_original_response()
+        
+        for emoji_name in emoji_input:
+            sticker = await self.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, emoji_name.strip())
+            if sticker is None:
+                continue
+            message_id = await self.db.fetchval('SELECT emoji_message_id FROM stickers WHERE sticker_id = $1', sticker[0])
+            emoji_url = await self.stickers.fetch_emoji_url(message_id)
+            filtered_name = re.sub(r'[^a-zA-Z0-9_]+', '_', sticker[1])
+            if filtered_name == '_':
+                filtered_name = 'emoji'
+                
+            async with aiohttp.ClientSession() as session:
+                    async with session.get(emoji_url) as resp:
+                        image = await resp.read()
+            if sticker[0] not in emoji_ids:
+                try:
+                    async with timeout(4):
+                        emoji = await guild.create_custom_emoji(name=f'{sticker[0]}_{filtered_name}', image=image)
+                except discord.HTTPException as e:
+                    print(e)
+                except asyncio.TimeoutError:
+                    continue
+                emojis.append(emoji)
+                emoji_ids.append(sticker[0])
+            
+        if emojis == []:
+            return
+        
+        for emoji in emojis:
+            await self.message.add_reaction(emoji)
+            await guild.delete_emoji(emoji)
+            
+        await asyncio.sleep(60)
+        
+        for emoji in emojis:
+            try:
+                await self.message.remove_reaction(emoji, self.bot.user)
+            except:
+                pass
+        
 async def setup(bot):
-    await bot.add_cog(Stickers(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
+    await bot.add_cog(Stickers(bot))

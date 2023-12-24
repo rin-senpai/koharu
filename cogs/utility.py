@@ -6,12 +6,18 @@ import asyncio
 from .utils.image import resize, is_image_url
 from random import randint
 import re
+from utils.owner_only import owner_only
 
 class Utility(commands.Cog, description='Only my *true* kouhai can use me, but I don\'t mind if others find utility in me. 👉 👈'):
     def __init__(self, bot):
         self.bot = bot
+        
+    @app_commands.command(name='log', description='Sends log file.')
+    @app_commands.check(owner_only)
+    async def log(self, interaction: discord.Interaction):
+        await interaction.response.send_message(files=[discord.File('koharu.log')])
 
-    @app_commands.command(name='color', description='Sets your role color when you provide a hex code or RGB. Shows your current color when it\'s left blank.')
+    @app_commands.command(name='color', description='Sets your role color. Shows your current color when left blank.')
     async def color(self, interaction: discord.Interaction, color: str = None, random: bool = False, reset: bool = False):
         return_role_color = False
         if reset:
@@ -272,4 +278,4 @@ class EditField(ui.Modal, title = 'Edit Field'):
         await interaction.response.edit_message(view=self.parent, embed=embed)
 
 async def setup(bot):
-    await bot.add_cog(Utility(bot), guilds=[discord.Object(id=752052271935914064), discord.Object(id=722386163356270662)])
+    await bot.add_cog(Utility(bot))

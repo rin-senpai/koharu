@@ -1,10 +1,10 @@
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, filename='koharu.log', filemode='w')
 
 from typing import Literal, Optional
 
 import discord
-from discord import app_commands, Intents
+from discord import Intents
 from discord.ext import commands
 from discord.ext.commands import Greedy, Context
 from bot import Bot
