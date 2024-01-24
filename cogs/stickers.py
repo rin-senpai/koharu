@@ -17,6 +17,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         self.EMOJI_CHANNEL_ID = 1067822653655748718
         
         self.bot = bot
+        self.db = bot.db
         
         self.auto_removed_chars = [' ', '\n']
         self.invalid_chars = [';', ':', '`']
