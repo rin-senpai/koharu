@@ -283,11 +283,11 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
         if message.webhook_id is not None and is_image_url(message.content):
             sticker_id = int(message.content.split('/')[-1].split('.')[0])
             if sticker_id is None:
-                return await interaction.followup.send('This isn\'t a sticker xd', ephemeral=True)
+                return await interaction.response.send_message('This isn\'t a sticker xd', ephemeral=True)
             if await self.bot.db.fetchval('SELECT sticker_id FROM users_stickers WHERE user_id = $1 AND sticker_id = $2', interaction.user.id, sticker_id) is not None:
                 return await interaction.response.send_message('You already have that sticker', ephemeral=True)
             return await attempt_steal(sticker_id, self.bot.db, interaction)
-        await interaction.followup.send('the frick is this disappointing garbage nya?', ephemeral=True)
+        await interaction.response.send_message('the frick is this disappointing garbage nya?', ephemeral=True)
 
     async def generate_list(self, stickers):
         line_limit = 16
