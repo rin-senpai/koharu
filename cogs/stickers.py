@@ -262,7 +262,7 @@ class Stickers(commands.Cog, description='only took multiple years (I think?)'):
 
     @sticker.command(name='share', description='Shares a sticker from your collection')
     async def share(self, interaction: discord.Interaction, name: str):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         name = name.replace('\n', ' ')
         sticker_details = await self.bot.db.fetchval('SELECT (sticker_id, name) FROM users_stickers WHERE user_id = $1 AND (name = $2 OR $2 = ANY(aliases))', interaction.user.id, name)
         if sticker_details[0] is None:
